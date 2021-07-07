@@ -5,4 +5,4 @@ This is a Haxball Headless Room called Strangeball that I programmed.
 
 - Clone this repo.
 - In the clone file, open terminal and type "npm install" then press enter.
-- Then, in terminal, type "npm start".
+- Then, in terminal, type "npm start" then press enter.
