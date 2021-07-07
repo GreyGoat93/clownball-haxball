@@ -287,9 +287,7 @@ const INITIAL_VALUES = {
         if (redTeam.length === blueTeam.length && redTeam.length < SYSTEM.PEOPLE_COUNT_BY_TEAM && blueTeam.length < SYSTEM.PEOPLE_COUNT_BY_TEAM) {
           if (playablesSpec.length >= 2) {
             room_room.pauseGame(true);
-            roomStates.teamSelecting = 3;
-            this.autoSelect(3, playablesSpec);
-            announceLouder("SELECT_PLAYER", ["All Teams", this.printPlayableSpecs(playablesSpec)]);
+            this.selectPlayerAbstraction(3, playablesSpec);
           }
         } else if (redTeam.length > blueTeam.length) {
           if (playablesSpec.length === 0) {
@@ -302,9 +300,7 @@ const INITIAL_VALUES = {
               playablesSpec.forEach(player => room_room.setPlayerTeam(player.id, 2));
             } else {
               room_room.pauseGame(true);
-              roomStates.teamSelecting = 2;
-              this.autoSelect(2, playablesSpec);
-              announceLouder("SELECT_PLAYER", ["Blue Team", this.printPlayableSpecs(playablesSpec)]);
+              this.selectPlayerAbstraction(2, playablesSpec);
             }
           }
         } else if (blueTeam.length > redTeam.length) {
@@ -318,14 +314,45 @@ const INITIAL_VALUES = {
               playablesSpec.forEach(player => room_room.setPlayerTeam(player.id, 1));
             } else {
               room_room.pauseGame(true);
-              roomStates.teamSelecting = 1;
-              this.autoSelect(1, playablesSpec);
-              announceLouder("SELECT_PLAYER", ["Red Team", this.printPlayableSpecs(playablesSpec)]);
+              this.selectPlayerAbstraction(1, playablesSpec);
             }
           }
         }
       }
-    } else if (roomStates.gamePhase === "choosing") {}
+    } else if (roomStates.gamePhase === "choosing") {
+      if (playables.length === 0) {
+        roomStates.gamePhase = "idle";
+      } else if (playables.length === 1) {
+        roomStates.gamePhase = "idle";
+        room_room.setPlayerTeam(playables[0].id, 0);
+      } else if (playables.length > 1) {
+        if (redTeam.length === blueTeam.length && redTeam.length < SYSTEM.PEOPLE_COUNT_BY_TEAM) {
+          if (playablesSpec.length >= 2) {
+            this.selectPlayerAbstraction(3, playablesSpec);
+          } else {
+            room_room.startGame();
+          }
+        }
+      }
+    }
+  },
+  selectPlayerAbstraction: function (team, playablesSpec) {
+    if (team === 1) {
+      console.log(playablesSpec);
+      roomStates.teamSelecting = 1;
+      this.autoSelect(1, playablesSpec);
+      announceLouder("SELECT_PLAYER", ["Red Team", this.printPlayableSpecs(playablesSpec)]);
+    } else if (team === 2) {
+      console.log(playablesSpec);
+      roomStates.teamSelecting = 2;
+      this.autoSelect(2, playablesSpec);
+      announceLouder("SELECT_PLAYER", ["Blue Team", this.printPlayableSpecs(playablesSpec)]);
+    } else if (team === 3) {
+      console.log(playablesSpec);
+      roomStates.teamSelecting = 3;
+      this.autoSelect(3, playablesSpec);
+      announceLouder("SELECT_PLAYER", ["All Teams", this.printPlayableSpecs(playablesSpec)]);
+    }
   },
   printPlayableSpecs: function (players = []) {
     let playersString = "||";
@@ -406,11 +433,22 @@ const INITIAL_VALUES = {
     roomStates.gamePhase = "finishing";
     let redTeam = players.findPlayersByTeam(1);
     let blueTeam = players.findPlayersByTeam(2);
+    let playablesSpec = players.findPlayables().filter(pre => pre.team === 0);
 
     if (scores.red > scores.blue) {
       blueTeam.forEach(player => room_room.setPlayerTeam(player.id, 0));
+      playablesSpec.forEach((player, index) => {
+        if (index < SYSTEM.PEOPLE_COUNT_BY_TEAM) {
+          room_room.setPlayerTeam(player.id, 2);
+        }
+      });
     } else if (scores.blue > scores.red) {
       redTeam.forEach(player => room_room.setPlayerTeam(player.id, 0));
+      playablesSpec.forEach((player, index) => {
+        if (index < SYSTEM.PEOPLE_COUNT_BY_TEAM) {
+          room_room.setPlayerTeam(player.id, 1);
+        }
+      });
     }
 
     room_room.stopGame();
@@ -462,10 +500,10 @@ const processChat = (player, message) => {
 let room_room; // Rooms properties when initializing.
 
 const ROOM_INIT_PROPERTIES = {
-  token: "thr1.AAAAAGDli0gtIgSm01nn1w.umabgxseh0o",
+  token: "thr1.AAAAAGDl85blufXOvDRpyQ.7JJe987iEkw",
   // Token is REQUIRED to have this app to skip the recapctha!
   roomName: `BOT ROOM`,
-  maxPlayers: 8,
+  maxPlayers: 15,
   noPlayer: true,
   public: false,
   geo: {
@@ -491,7 +529,7 @@ const makeSystemDefault = () => {
 };
 
 const ADMIN = {
-  PASSWORD: "2001Taha.."
+  PASSWORD: "123456a"
 }; //gamePhase: "idle" | "choosing" | "running"
 // Room states.
 

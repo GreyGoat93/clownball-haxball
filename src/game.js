@@ -48,9 +48,7 @@ export default {
                 if(redTeam.length === blueTeam.length && redTeam.length < SYSTEM.PEOPLE_COUNT_BY_TEAM && blueTeam.length < SYSTEM.PEOPLE_COUNT_BY_TEAM){
                     if(playablesSpec.length >= 2){
                         room.pauseGame(true);
-                        roomStates.teamSelecting = 3;
-                        this.autoSelect(3, playablesSpec);
-                        announceLouder("SELECT_PLAYER", ["All Teams", this.printPlayableSpecs(playablesSpec)]);
+                        this.selectPlayerAbstraction(3, playablesSpec);
                     }
                 } else if(redTeam.length > blueTeam.length){
                     if(playablesSpec.length === 0){
@@ -63,10 +61,8 @@ export default {
                             playablesSpec.forEach(player => room.setPlayerTeam(player.id, 2));
                         } else {
                             room.pauseGame(true);
-                            roomStates.teamSelecting = 2;
-                            this.autoSelect(2, playablesSpec);
-                            announceLouder("SELECT_PLAYER", ["Blue Team", this.printPlayableSpecs(playablesSpec)]);
-                        }    
+                            this.selectPlayerAbstraction(2, playablesSpec)
+                        }
                     }
                 } else if(blueTeam.length > redTeam.length){
                     if(playablesSpec.length === 0){
@@ -79,15 +75,44 @@ export default {
                             playablesSpec.forEach(player => room.setPlayerTeam(player.id, 1));
                         } else {
                             room.pauseGame(true);
-                            roomStates.teamSelecting = 1;
-                            this.autoSelect(1, playablesSpec);
-                            announceLouder("SELECT_PLAYER", ["Red Team", this.printPlayableSpecs(playablesSpec)]);
+                            this.selectPlayerAbstraction(1, playablesSpec)
                         }
                     }
                 }
             }
         } else if(roomStates.gamePhase === "choosing"){
-
+            if(playables.length === 0){
+                roomStates.gamePhase = "idle";
+            } else if(playables.length === 1){
+                roomStates.gamePhase = "idle";
+                room.setPlayerTeam(playables[0].id, 0);
+            } else if(playables.length > 1){
+                if(redTeam.length === blueTeam.length && redTeam.length < SYSTEM.PEOPLE_COUNT_BY_TEAM){
+                    if(playablesSpec.length >= 2){
+                        this.selectPlayerAbstraction(3, playablesSpec);
+                    } else {
+                        room.startGame();
+                    }
+                }
+            }
+        }
+    },
+    selectPlayerAbstraction: function(team, playablesSpec){
+        if(team === 1){
+            console.log(playablesSpec);
+            roomStates.teamSelecting = 1;
+            this.autoSelect(1, playablesSpec);
+            announceLouder("SELECT_PLAYER", ["Red Team", this.printPlayableSpecs(playablesSpec)]);
+        } else if(team === 2){
+            console.log(playablesSpec);
+            roomStates.teamSelecting = 2;
+            this.autoSelect(2, playablesSpec);
+            announceLouder("SELECT_PLAYER", ["Blue Team", this.printPlayableSpecs(playablesSpec)]);
+        } else if(team === 3){
+            console.log(playablesSpec);
+            roomStates.teamSelecting = 3;
+            this.autoSelect(3, playablesSpec);
+            announceLouder("SELECT_PLAYER", ["All Teams", this.printPlayableSpecs(playablesSpec)]);
         }
     },
     printPlayableSpecs: function(players = []){
@@ -169,10 +194,21 @@ export default {
         roomStates.gamePhase = "finishing"
         let redTeam = players.findPlayersByTeam(1);
         let blueTeam = players.findPlayersByTeam(2);
+        let playablesSpec = players.findPlayables().filter(pre => pre.team === 0);
         if(scores.red > scores.blue){
             blueTeam.forEach(player => room.setPlayerTeam(player.id, 0));
+            playablesSpec.forEach((player, index) => {
+                if(index < SYSTEM.PEOPLE_COUNT_BY_TEAM){
+                    room.setPlayerTeam(player.id, 2);
+                }
+            });
         } else if(scores.blue > scores.red){
             redTeam.forEach(player => room.setPlayerTeam(player.id, 0));
+            playablesSpec.forEach((player, index) => {
+                if(index < SYSTEM.PEOPLE_COUNT_BY_TEAM){
+                    room.setPlayerTeam(player.id, 1);
+                }
+            });
         }
         room.stopGame();
     },

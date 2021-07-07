@@ -11,7 +11,7 @@ let room;
 const ROOM_INIT_PROPERTIES = {
   token: process.env.TOKEN, // Token is REQUIRED to have this app to skip the recapctha!
   roomName: `BOT ROOM`,
-  maxPlayers: 8,
+  maxPlayers: 15,
   noPlayer: true,
   public: false,
   geo: {
