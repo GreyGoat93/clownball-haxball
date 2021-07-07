@@ -1,0 +1,28 @@
+{
+  "name": "haxballeasybot",
+  "version": "0.0.1",
+  "description": "Makes your life easier when creating haxball headless bots.",
+  "main": "app.js",
+  "scripts": {
+    "build": "webpack",
+    "start": "webpack && node app.js",
+    "something": "node something.js"
+  },
+  "author": "GreyGoat93",
+  "license": "ISC",
+  "dependencies": {
+    "@babel/preset-env": "^7.13.12",
+    "dot-env": "0.0.1",
+    "dotenv-webpack": "^7.0.2",
+    "prettier-webpack-plugin": "^1.2.0",
+    "puppeteer": "^8.0.0",
+    "puppeteer-core": "^8.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.13.13",
+    "@babel/plugin-proposal-optional-chaining": "^7.13.12",
+    "babel-loader": "^8.2.2",
+    "webpack": "^5.26.3",
+    "webpack-cli": "^4.5.0"
+  }
+}
