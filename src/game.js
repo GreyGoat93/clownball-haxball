@@ -9,17 +9,19 @@ export default {
         const playablesSpec = playables.filter(pre => pre.team === 0);
         const redTeam = players.findPlayersByTeam(1);
         const blueTeam = players.findPlayersByTeam(2);
-        console.log("-------------------")
-        console.log(roomStates.gamePhase);
-        console.log("RED");
-        console.log(redTeam);
-        console.log("BLUE");
-        console.log(blueTeam);
-        console.log("PLAYABLES")
-        console.log(playables);
-        console.log("PLAYABLES SPEC");
-        console.log(playablesSpec);
-        console.log("-----------------");
+        if(true){
+            console.log("-------------------")
+            console.log(roomStates.gamePhase);
+            console.log("RED");
+            console.log(redTeam);
+            console.log("BLUE");
+            console.log(blueTeam);
+            console.log("PLAYABLES")
+            console.log(playables);
+            console.log("PLAYABLES SPEC");
+            console.log(playablesSpec);
+            console.log("-----------------");
+        }
         if(roomStates.gamePhase === "idle"){
             if(playables.length === 2){
                 console.log(playablesSpec);
@@ -58,7 +60,7 @@ export default {
                     } else if(playablesSpec.length > 1){
                         if(playablesSpec.length === SYSTEM.PEOPLE_COUNT_BY_TEAM - blueTeam.length){
                             room.pauseGame(false);
-                            playablesSpec.forEach(player => room.setPlayerTeam(player.id, 2));
+                            room.setPlayerTeam(playablesSpec[0].id, 2)
                         } else {
                             room.pauseGame(true);
                             this.selectPlayerAbstraction(2, playablesSpec)
@@ -72,7 +74,7 @@ export default {
                     } else if(playablesSpec.length > 1){
                         if(playablesSpec.length === SYSTEM.PEOPLE_COUNT_BY_TEAM - redTeam.length){
                             room.pauseGame(false);
-                            playablesSpec.forEach(player => room.setPlayerTeam(player.id, 1));
+                            room.setPlayerTeam(playablesSpec[0].id, 1);
                         } else {
                             room.pauseGame(true);
                             this.selectPlayerAbstraction(1, playablesSpec)
@@ -88,11 +90,49 @@ export default {
                 room.setPlayerTeam(playables[0].id, 0);
             } else if(playables.length > 1){
                 if(redTeam.length === blueTeam.length && redTeam.length < SYSTEM.PEOPLE_COUNT_BY_TEAM){
-                    if(playablesSpec.length >= 2){
+                    if(playablesSpec.length >= 2 && redTeam.length <= SYSTEM.PEOPLE_COUNT_BY_TEAM - 1){
                         this.selectPlayerAbstraction(3, playablesSpec);
-                    } else {
-                        room.startGame();
                     }
+                } else if(redTeam.length < blueTeam.length){
+                    if(redTeam.length === 0 && playablesSpec.length > 0){
+                        room.setPlayerTeam(playablesSpec[0].id, 1);
+                    } else if(redTeam.length >= 1){
+                        if(playablesSpec.length === 0){
+                            room.setPlayerTeam(blueTeam[blueTeam.length-1].id, 0);
+                        } else if(playablesSpec.length === 1){
+                            room.setPlayerTeam(playablesSpec[0].id, 1)
+                        } else if(playablesSpec.length > 1){
+                            if(playablesSpec.length + redTeam.length === blueTeam.length){
+                                room.setPlayerTeam(playablesSpec[0].id, 1)
+                            } else {
+                                this.selectPlayerAbstraction(1, playablesSpec)
+                            }
+                        }
+                    }
+                } else if(redTeam.length > blueTeam.length){
+                    if(blueTeam.length === 0 && playablesSpec.length > 0){
+                        room.setPlayerTeam(playablesSpec[0].id, 2);
+                    } else if(blueTeam.length >= 1){
+                        if(playablesSpec.length === 0){
+                            room.setPlayerTeam(redTeam[redTeam.length-1].id, 0);
+                        } else if(playablesSpec.length === 1){
+                            room.setPlayerTeam(playablesSpec[0].id, 2)
+                        } else if(playablesSpec.length > 1){
+                            if(playablesSpec.length + blueTeam.length === redTeam.length){
+                                room.setPlayerTeam(playablesSpec[0].id, 2)
+                            } else {
+                                this.selectPlayerAbstraction(2, playablesSpec)
+                            }
+                        }
+                    }
+                }
+            }
+
+            if(redTeam.length === blueTeam.length && redTeam.length > 0){
+                if(redTeam.length === SYSTEM.PEOPLE_COUNT_BY_TEAM){
+                    room.startGame();
+                } else if(redTeam.length < SYSTEM.PEOPLE_COUNT_BY_TEAM && playablesSpec.length < 2){
+                    room.startGame();
                 }
             }
         }
@@ -131,7 +171,7 @@ export default {
                 room.setPlayerTeam(playablesSpec[0].id, 1);
             }
             room.pauseGame(false);
-        }, 10000)
+        }, 10000000)
     },
     selectPlayer: function(index, selectorsTeam){
         const playables = players.findPlayables();
@@ -198,19 +238,19 @@ export default {
         if(scores.red > scores.blue){
             blueTeam.forEach(player => room.setPlayerTeam(player.id, 0));
             playablesSpec.forEach((player, index) => {
-                if(index < SYSTEM.PEOPLE_COUNT_BY_TEAM){
+                if(index <= redTeam.length){
                     room.setPlayerTeam(player.id, 2);
                 }
             });
         } else if(scores.blue > scores.red){
             redTeam.forEach(player => room.setPlayerTeam(player.id, 0));
             playablesSpec.forEach((player, index) => {
-                if(index < SYSTEM.PEOPLE_COUNT_BY_TEAM){
+                if(index <= blueTeam.length){
                     room.setPlayerTeam(player.id, 1);
                 }
             });
         }
-        room.stopGame();
+        setTimeout(() => {room.stopGame()}, 1000);
     },
     onPlayerBallKick: function(player){
     
