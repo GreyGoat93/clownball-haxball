@@ -99,6 +99,7 @@ window.onHBLoaded = () => {
   room.setTeamsLock(true);
   room.setScoreLimit(SYSTEM.GAME_SCORE_LIMIT);
   room.setTimeLimit(SYSTEM.GAME_TIME_LIMIT);
+  room.setKickRateLimit(60, 0, 0);
 
   room.onPlayerJoin = (player) => {
     players.onPlayerJoin(player);
@@ -147,15 +148,6 @@ window.onHBLoaded = () => {
 
   room.onPlayerBallKick = (player) => {
     game.onPlayerBallKick(player);
-    let {x: bx, y: by} = room.getDiscProperties(0);
-    room.sendAnnouncement(`bx: ${bx}, by: ${by}`);
-    let {x: px, y: py} = room.getPlayerDiscProperties(player.id);
-    room.sendAnnouncement(`px: ${px}, py: ${py}`);
-    room.sendAnnouncement(`dx: ${px - bx}, dy: ${py - by}, rxy: ${(px - bx) / (py - by)}`);
-    setTimeout(() => {
-        let {xspeed, yspeed} = room.getDiscProperties(0);
-        room.sendAnnouncement(`xspd: ${xspeed}, yspd: ${yspeed}`)
-    }, 300);
   }
 
   room.onPlayerActivity = (player) => {

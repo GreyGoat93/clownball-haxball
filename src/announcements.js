@@ -93,10 +93,18 @@ const announceLouder = (announcementCode, inputs = [], color = null) => {
     room.sendAnnouncement(msg, null, _color, "bold", 2);
 }
 
+const announceTeams = (announcementCode, teams = [], inputs = [], color = null) => {
+    let _color = color ? color : announcements[announcementCode].color;
+    let msg = convert(announcementCode, "en", inputs);
+    playerList.filter(pre => teams.includes(pre.team)).forEach(player => {
+        room.sendAnnouncement(msg, player.id, _color, "bold", 2);
+    })
+}
+
 const notice = (announcementCode, inputs = [], player, color = null) => {
     let _color = color ? color : announcements[announcementCode].color;
     let msg = convert(announcementCode, "en", inputs);
     room.sendAnnouncement(msg, player.id, _color, "bold", 2);
 }
 
-export {announce, announceLouder, notice, convert};
+export {announce, announceLouder, announceTeams, notice, convert};

@@ -1,4 +1,4 @@
-import { DEFAULT_AVATAR, playerList, room, roomStates } from "./room"
+import { DEFAULT_AVATAR, playerList, room, roomStates, SYSTEM } from "./room"
 import { generateRandomNumber } from "./helper/randomNumber";
 import players from "./players";
 import { notice } from "./announcements";
@@ -11,7 +11,6 @@ export let strangenessUsage = [
 export const strangenesses = [
     {
         id: "TELEPORT_KICKER",
-        type: "immediatly",
         invoke(playerKicked){
             let playerProps = room.getPlayerDiscProperties(playerKicked.id);
             room.setPlayerDiscProperties(
@@ -34,6 +33,33 @@ export const strangenesses = [
         }
     },
     {
+        id: "BOMB_BALL",
+        invoke(playerKicked){
+            let {x, y} = room.getDiscProperties(0);
+            const SYSTEM_OF_EQUATION_X = -7/40000;
+            const SYSTEM_OF_EQUATION_Y = 15;
+            playerList.filter(pre => pre.team !== 0).forEach(player => {
+                let {x: px, y: py} = room.getPlayerDiscProperties(player.id);
+                let dx = px - x;
+                let dy = py - y;
+                let sx;
+                let sy;
+                if(dx === 0) sx = 0;
+                else if(dx > 0) sx = 1;
+                else sx = -1;
+                if(dy === 0) sy = 0;
+                else if(dy > 0) sy = 1;
+                else sy = -1;
+                let distance = Math.sqrt(dx*dx+dy*dy);
+                let xspeed = ((dx * distance) * SYSTEM_OF_EQUATION_X + SYSTEM_OF_EQUATION_Y) * sx;
+                let yspeed = ((dy * distance) * SYSTEM_OF_EQUATION_X + SYSTEM_OF_EQUATION_Y) * sy;
+                if(distance < 200){
+                    room.setPlayerDiscProperties(player.id, {xspeed, yspeed});
+                }
+            })
+        }
+    },
+    {
         id: "SHOOT",
         invoke(playerKicked){
             let {x, y, xspeed, yspeed} = room.getDiscProperties(0);
@@ -41,7 +67,7 @@ export const strangenesses = [
             let dx = x - px;
             let dy = y - py;
             let distance = 20 / Math.sqrt(dx*dx+dy*dy);
-            room.setDiscProperties(0, {xspeed: xspeed + (dx * distance), yspeed: xspeed + (dy * distance), color: 0xffce00});
+            room.setDiscProperties(0, {xspeed: xspeed + (dx * distance), yspeed: yspeed + (dy * distance), color: 0xffce00});
             strangenessUsage.push({
                 tick: roomStates.gameTick + 5,
                 positionId: roomStates.positionId,

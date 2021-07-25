@@ -1,5 +1,5 @@
 import {room, playerList, roomStates, SYSTEM, strangenessesInit} from './room.js';
-import {announceLouder} from './announcements';
+import {announceLouder, announceTeams} from './announcements';
 import { strangenesses, strangenessUsage } from './strangeness.js';
 import { getAngleBetweenTwoDiscs } from './helper/math';
 import players, { INITIAL_PLAYER_VALUES } from './players.js'
@@ -130,15 +130,15 @@ export default {
         if(team === 1){
             roomStates.teamSelecting = 1;
             this.autoSelect(1, playablesSpec);
-            announceLouder("SELECT_PLAYER", ["Red Team", this.printPlayableSpecs(playablesSpec)]);
+            announceTeams("SELECT_PLAYER", [1], ["Red Team", this.printPlayableSpecs(playablesSpec)]);
         } else if(team === 2){
             roomStates.teamSelecting = 2;
             this.autoSelect(2, playablesSpec);
-            announceLouder("SELECT_PLAYER", ["Blue Team", this.printPlayableSpecs(playablesSpec)]);
+            announceTeams("SELECT_PLAYER", [2], ["Blue Team", this.printPlayableSpecs(playablesSpec)]);
         } else if(team === 3){
             roomStates.teamSelecting = 3;
             this.autoSelect(3, playablesSpec);
-            announceLouder("SELECT_PLAYER", ["All Teams", this.printPlayableSpecs(playablesSpec)]);
+            announceTeams("SELECT_PLAYER", [1, 2], ["All Teams", this.printPlayableSpecs(playablesSpec)]);
         }
     },
     printPlayableSpecs: function(players = []){
@@ -192,13 +192,13 @@ export default {
         this.resetOnGameStart();
     },
     resetOnGameStart: function(){
+        this.makeAllPlayerWeak();
         roomStates.gameStarted = true;
         roomStates.gamePhase = "running";
         roomStates.gameId += 1;
     },
     onGameStop: function(){
         this.resetOnGameStop();
-        room.setDiscProperties(0, {invMass: 0});
     },
     resetOnGameStop: function(){
         roomStates.gameStarted = false;
@@ -252,10 +252,15 @@ export default {
         // strangenesses[Math.floor(Math.random() * 7)].invoke(player);
         if(!roomStates.strangenesses.frozenBall){
             // sexxx % 2 === 1 && _strangenesses.find(pre => pre.id === "SMALL_BALL")?.invoke(player);
-            sexxx % 1 === 0 && _strangenesses.find(pre => pre.id === "SHOOT")?.invoke(player);
+            sexxx % 1 === 0 && _strangenesses.find(pre => pre.id === "BOMB_BALL")?.invoke(player);
             sexxx += 1;
         }
         
+    },
+    makeAllPlayerWeak: function(){
+        playerList.filter(players => players.team !== 0).forEach(player => {
+            room.setPlayerDiscProperties(player.id, {invMass: 999999999})
+        })
     },
     getPlayersDiscProperties: function(){
         room.getPlayerList().forEach(el => {

@@ -1,4 +1,4 @@
-import {room, playerList, roomStates, SYSTEM, strangenessesInit} from './room.js';
+import {room, playerList, roomStates, SYSTEM, strangenessesInit, DEFAULT_AVATAR} from './room.js';
 import {connStringToIp} from './helper/ipConverter'
 import { notice, announce } from './announcements.js';
 import game from './game.js';
@@ -38,6 +38,7 @@ export default {
                 ip: connStringToIp(player.conn),
             }
             playerList.push(newPlayer);
+            room.setPlayerAvatar(player.id, DEFAULT_AVATAR)
             game.checkTheGame();
             notice("WELCOME", [player.name], player);
         }
@@ -105,6 +106,7 @@ export default {
         return playerList.filter(pre => pre.team !== 0);
     },
     onPositionsReset: function(){
+        game.makeAllPlayerWeak();
         playerList.forEach(player => {
             player.strangenesses = {...INITIAL_PLAYER_VALUES.strangenesses}
         })

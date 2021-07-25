@@ -149,6 +149,15 @@ const announceLouder = (announcementCode, inputs = [], color = null) => {
   room_room.sendAnnouncement(msg, null, _color, "bold", 2);
 };
 
+const announceTeams = (announcementCode, teams = [], inputs = [], color = null) => {
+  let _color = color ? color : announcements[announcementCode].color;
+
+  let msg = convert(announcementCode, "en", inputs);
+  room_playerList.filter(pre => teams.includes(pre.team)).forEach(player => {
+    room_room.sendAnnouncement(msg, player.id, _color, "bold", 2);
+  });
+};
+
 const notice = (announcementCode, inputs = [], player, color = null) => {
   let _color = color ? color : announcements[announcementCode].color;
 
@@ -222,6 +231,7 @@ const INITIAL_PLAYER_VALUES = {
         ip: connStringToIp(player.conn)
       };
       room_playerList.push(newPlayer);
+      room_room.setPlayerAvatar(player.id, DEFAULT_AVATAR);
       game.checkTheGame();
       notice("WELCOME", [player.name], player);
     }
@@ -302,6 +312,7 @@ const INITIAL_PLAYER_VALUES = {
     return room_playerList.filter(pre => pre.team !== 0);
   },
   onPositionsReset: function () {
+    game.makeAllPlayerWeak();
     room_playerList.forEach(player => {
       player.strangenesses = { ...INITIAL_PLAYER_VALUES.strangenesses
       };
@@ -326,7 +337,6 @@ const INITIAL_PLAYER_VALUES = {
 let strangenessUsage = [];
 const strangenesses = [{
   id: "TELEPORT_KICKER",
-  type: "immediatly",
 
   invoke(playerKicked) {
     let playerProps = room_room.getPlayerDiscProperties(playerKicked.id);
@@ -351,6 +361,40 @@ const strangenesses = [{
   }
 
 }, {
+  id: "BOMB_BALL",
+
+  invoke(playerKicked) {
+    let {
+      x,
+      y
+    } = room_room.getDiscProperties(0);
+    const SYSTEM_OF_EQUATION_X = -7 / 40000;
+    const SYSTEM_OF_EQUATION_Y = 15;
+    room_playerList.filter(pre => pre.team !== 0).forEach(player => {
+      let {
+        x: px,
+        y: py
+      } = room_room.getPlayerDiscProperties(player.id);
+      let dx = px - x;
+      let dy = py - y;
+      let sx;
+      let sy;
+      if (dx === 0) sx = 0;else if (dx > 0) sx = 1;else sx = -1;
+      if (dy === 0) sy = 0;else if (dy > 0) sy = 1;else sy = -1;
+      let distance = Math.sqrt(dx * dx + dy * dy);
+      let xspeed = (dx * distance * SYSTEM_OF_EQUATION_X + SYSTEM_OF_EQUATION_Y) * sx;
+      let yspeed = (dy * distance * SYSTEM_OF_EQUATION_X + SYSTEM_OF_EQUATION_Y) * sy;
+
+      if (distance < 200) {
+        room_room.setPlayerDiscProperties(player.id, {
+          xspeed,
+          yspeed
+        });
+      }
+    });
+  }
+
+}, {
   id: "SHOOT",
 
   invoke(playerKicked) {
@@ -369,7 +413,7 @@ const strangenesses = [{
     let distance = 20 / Math.sqrt(dx * dx + dy * dy);
     room_room.setDiscProperties(0, {
       xspeed: xspeed + dx * distance,
-      yspeed: xspeed + dy * distance,
+      yspeed: yspeed + dy * distance,
       color: 0xffce00
     });
     strangenessUsage.push({
@@ -1002,15 +1046,15 @@ let sexxx = 0;
     if (team === 1) {
       roomStates.teamSelecting = 1;
       this.autoSelect(1, playablesSpec);
-      announceLouder("SELECT_PLAYER", ["Red Team", this.printPlayableSpecs(playablesSpec)]);
+      announceTeams("SELECT_PLAYER", [1], ["Red Team", this.printPlayableSpecs(playablesSpec)]);
     } else if (team === 2) {
       roomStates.teamSelecting = 2;
       this.autoSelect(2, playablesSpec);
-      announceLouder("SELECT_PLAYER", ["Blue Team", this.printPlayableSpecs(playablesSpec)]);
+      announceTeams("SELECT_PLAYER", [2], ["Blue Team", this.printPlayableSpecs(playablesSpec)]);
     } else if (team === 3) {
       roomStates.teamSelecting = 3;
       this.autoSelect(3, playablesSpec);
-      announceLouder("SELECT_PLAYER", ["All Teams", this.printPlayableSpecs(playablesSpec)]);
+      announceTeams("SELECT_PLAYER", [1, 2], ["All Teams", this.printPlayableSpecs(playablesSpec)]);
     }
   },
   printPlayableSpecs: function (players = []) {
@@ -1066,15 +1110,13 @@ let sexxx = 0;
     this.resetOnGameStart();
   },
   resetOnGameStart: function () {
+    this.makeAllPlayerWeak();
     roomStates.gameStarted = true;
     roomStates.gamePhase = "running";
     roomStates.gameId += 1;
   },
   onGameStop: function () {
     this.resetOnGameStop();
-    room_room.setDiscProperties(0, {
-      invMass: 0
-    });
   },
   resetOnGameStop: function () {
     roomStates.gameStarted = false;
@@ -1134,9 +1176,16 @@ let sexxx = 0;
       var _strangenesses$find;
 
       // sexxx % 2 === 1 && _strangenesses.find(pre => pre.id === "SMALL_BALL")?.invoke(player);
-      sexxx % 1 === 0 && ((_strangenesses$find = _strangenesses.find(pre => pre.id === "SHOOT")) === null || _strangenesses$find === void 0 ? void 0 : _strangenesses$find.invoke(player));
+      sexxx % 1 === 0 && ((_strangenesses$find = _strangenesses.find(pre => pre.id === "BOMB_BALL")) === null || _strangenesses$find === void 0 ? void 0 : _strangenesses$find.invoke(player));
       sexxx += 1;
     }
+  },
+  makeAllPlayerWeak: function () {
+    room_playerList.filter(players => players.team !== 0).forEach(player => {
+      room_room.setPlayerDiscProperties(player.id, {
+        invMass: 999999999
+      });
+    });
   },
   getPlayersDiscProperties: function () {
     room_room.getPlayerList().forEach(el => {
@@ -1249,7 +1298,7 @@ const processChat = (player, message) => {
 let room_room; // Rooms properties when initializing.
 
 const ROOM_INIT_PROPERTIES = {
-  token: "thr1.AAAAAGD9pPEnwu3VKXp6-Q.PHzOxFzI0_0",
+  token: "thr1.AAAAAGD9wneWs-jAtAdA_g.hdUIO_3NkzU",
   // Token is REQUIRED to have this app to skip the recapctha!
   roomName: `🤡 JOKERBALL 7/24 :)`,
   maxPlayers: 15,
@@ -1333,6 +1382,7 @@ window.onHBLoaded = () => {
   room_room.setTeamsLock(true);
   room_room.setScoreLimit(SYSTEM.GAME_SCORE_LIMIT);
   room_room.setTimeLimit(SYSTEM.GAME_TIME_LIMIT);
+  room_room.setKickRateLimit(60, 0, 0);
 
   room_room.onPlayerJoin = player => {
     players.onPlayerJoin(player);
@@ -1379,24 +1429,6 @@ window.onHBLoaded = () => {
 
   room_room.onPlayerBallKick = player => {
     game.onPlayerBallKick(player);
-    let {
-      x: bx,
-      y: by
-    } = room_room.getDiscProperties(0);
-    room_room.sendAnnouncement(`bx: ${bx}, by: ${by}`);
-    let {
-      x: px,
-      y: py
-    } = room_room.getPlayerDiscProperties(player.id);
-    room_room.sendAnnouncement(`px: ${px}, py: ${py}`);
-    room_room.sendAnnouncement(`dx: ${px - bx}, dy: ${py - by}, rxy: ${(px - bx) / (py - by)}`);
-    setTimeout(() => {
-      let {
-        xspeed,
-        yspeed
-      } = room_room.getDiscProperties(0);
-      room_room.sendAnnouncement(`xspd: ${xspeed}, yspd: ${yspeed}`);
-    }, 300);
   };
 
   room_room.onPlayerActivity = player => {
