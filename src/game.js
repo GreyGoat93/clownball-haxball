@@ -1,7 +1,10 @@
-import {room, playerList, roomStates, SYSTEM} from './room.js';
+import {room, playerList, roomStates, SYSTEM, strangenessesInit} from './room.js';
 import {announceLouder} from './announcements';
-import { distanceBetweenDiscs } from './helper/math';
-import players from './players.js'
+import { strangenesses, strangenessUsage } from './strangeness.js';
+import { getAngleBetweenTwoDiscs } from './helper/math';
+import players, { INITIAL_PLAYER_VALUES } from './players.js'
+
+let sexxx = 0;
 
 export default {
     checkTheGame: function(){
@@ -9,22 +12,9 @@ export default {
         const playablesSpec = playables.filter(pre => pre.team === 0);
         const redTeam = players.findPlayersByTeam(1);
         const blueTeam = players.findPlayersByTeam(2);
-        if(true){
-            console.log("-------------------")
-            console.log(roomStates.gamePhase);
-            console.log("RED");
-            console.log(redTeam);
-            console.log("BLUE");
-            console.log(blueTeam);
-            console.log("PLAYABLES")
-            console.log(playables);
-            console.log("PLAYABLES SPEC");
-            console.log(playablesSpec);
-            console.log("-----------------");
-        }
+        
         if(roomStates.gamePhase === "idle"){
             if(playables.length === 2){
-                console.log(playablesSpec);
                 if(roomStates.gamePhase === "idle"){
                     room.setPlayerTeam(playablesSpec[0].id, 1);
                     room.setPlayerTeam(playablesSpec[1].id, 2);
@@ -39,7 +29,6 @@ export default {
                     room.stopGame();
                 }
             } else if(playables.length === 2){
-                console.log(playablesSpec);
                 if(playablesSpec[0]){
                     let emptyTeam = 0;
                     if(redTeam.length !== 0) emptyTeam = 2;
@@ -139,17 +128,14 @@ export default {
     },
     selectPlayerAbstraction: function(team, playablesSpec){
         if(team === 1){
-            console.log(playablesSpec);
             roomStates.teamSelecting = 1;
             this.autoSelect(1, playablesSpec);
             announceLouder("SELECT_PLAYER", ["Red Team", this.printPlayableSpecs(playablesSpec)]);
         } else if(team === 2){
-            console.log(playablesSpec);
             roomStates.teamSelecting = 2;
             this.autoSelect(2, playablesSpec);
             announceLouder("SELECT_PLAYER", ["Blue Team", this.printPlayableSpecs(playablesSpec)]);
         } else if(team === 3){
-            console.log(playablesSpec);
             roomStates.teamSelecting = 3;
             this.autoSelect(3, playablesSpec);
             announceLouder("SELECT_PLAYER", ["All Teams", this.printPlayableSpecs(playablesSpec)]);
@@ -202,19 +188,28 @@ export default {
         }
     },
     onGameStart: function(){
+        roomStates.gameId === 0 && room.stopGame();
         this.resetOnGameStart();
     },
     resetOnGameStart: function(){
         roomStates.gameStarted = true;
         roomStates.gamePhase = "running";
+        roomStates.gameId += 1;
     },
     onGameStop: function(){
         this.resetOnGameStop();
+        room.setDiscProperties(0, {invMass: 0});
     },
     resetOnGameStop: function(){
         roomStates.gameStarted = false;
         roomStates.gameLocked = true;
         roomStates.gamePhase = "choosing";
+        roomStates.gameTick = 0;
+        roomStates.positionId += 0;
+        sexxx = 0;
+        strangenessUsage = [];
+        playerList.forEach(player => player.strangenesses = {...INITIAL_PLAYER_VALUES.strangenesses})
+        roomStates.strangenesses = {...strangenessesInit};
         this.checkTheGame();
     },
     onPlayerLeave: function(player){
@@ -253,11 +248,58 @@ export default {
         setTimeout(() => {room.stopGame()}, 1000);
     },
     onPlayerBallKick: function(player){
-    
+        let _strangenesses = strangenesses;
+        // strangenesses[Math.floor(Math.random() * 7)].invoke(player);
+        if(!roomStates.strangenesses.frozenBall){
+            // sexxx % 2 === 1 && _strangenesses.find(pre => pre.id === "SMALL_BALL")?.invoke(player);
+            sexxx % 1 === 0 && _strangenesses.find(pre => pre.id === "SHOOT")?.invoke(player);
+            sexxx += 1;
+        }
+        
     },
     getPlayersDiscProperties: function(){
         room.getPlayerList().forEach(el => {
             console.log(room.getPlayerDiscProperties(el.id));
         });
+    },
+    useSpeedBoost: function(player){
+        const _player = players.findPlayerById(player.id);
+        if(_player.strangenesses.speedBoost){
+            let playerProps = room.getPlayerDiscProperties(player.id);
+            room.setPlayerDiscProperties(player.id, {xspeed: playerProps.xspeed * 1.15, yspeed: playerProps.yspeed * 1.15}); 
+        }
+    },
+    checkIfPlayersFrozen: function(){
+        const freezePlayers = function(teamId){
+            players.findPlayersByTeam(teamId).forEach(player => {
+                room.setPlayerDiscProperties(player.id, {x: player.strangenesses.frozenCoordinates?.x, y: player.strangenesses.frozenCoordinates?.y, xspeed: 0, yspeed: 0});
+            })
+            sexxx += 1;
+        }
+
+        if(roomStates.strangenesses.makeEnemiesFrozenRed){
+            freezePlayers(1);
+        }
+
+        if(roomStates.strangenesses.makeEnemiesFrozenBlue){
+            freezePlayers(2);
+        }
+    },
+    checkIfPlayersSelfFrozen: function(){
+        playerList.forEach(player => {
+            if(player.strangenesses.selfFrozen){
+                let x = player.strangenesses.selfFrozenCoordinates?.x;
+                let y = player.strangenesses.selfFrozenCoordinates?.y;
+                room.setPlayerDiscProperties(player.id, {x, y, xspeed: 0, yspeed: 0});
+            }
+        })
+    },
+    checkIfPlayersAreSuperman: function(){
+        playerList.forEach(player => {
+            if(player.strangenesses.superman){
+                let {xspeed, yspeed} = room.getDiscProperties(0);
+                room.setPlayerDiscProperties(player.id, {xspeed, yspeed});
+            }
+        })
     }
 }

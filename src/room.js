@@ -3,6 +3,7 @@ import game from './game.js'
 import maps from './maps.js'
 import players from './players.js'
 import {processChat} from './chat';
+import { antiStrangenesses, strangenesses, strangenessUsage } from './strangeness.js';
 
 // Create room variable to use in exports.
 let room;
@@ -10,7 +11,7 @@ let room;
 // Rooms properties when initializing.
 const ROOM_INIT_PROPERTIES = {
   token: process.env.TOKEN, // Token is REQUIRED to have this app to skip the recapctha!
-  roomName: `BOT ROOM`,
+  roomName: `🤡 JOKERBALL 7/24 :)`,
   maxPlayers: 15,
   noPlayer: true,
   public: false,
@@ -25,9 +26,9 @@ const ROOM_INIT_PROPERTIES = {
 const SYSTEM = {
   MANAGE_AFKS: false,
   ONE_TAB: false,
-  PEOPLE_COUNT_BY_TEAM: 3,
+  PEOPLE_COUNT_BY_TEAM: 5,
   GAME_TIME_LIMIT: 0,
-  GAME_SCORE_LIMIT: 1,
+  GAME_SCORE_LIMIT: 2,
 }
 
 const makeSystemDefault = () => {
@@ -42,20 +43,44 @@ const ADMIN = {
   PASSWORD: "123456a",
 }
 
-//gamePhase: "idle" | "choosing" | "running"
+//gamePhase: "idle" | "choosing" | "running" | "finishing"
+
+export const strangenessesInit = {
+  ballRadiusId: 0,
+  makeEnemiesSmallerIdRed: 0,
+  makeEnemiesSmallerIdBlue: 0,
+  makeEnemiesSmallerRed: false,
+  makeEnemiesSmallerBlue: false,
+  frozenBall: false,
+  frozenBallId: 0,
+  makeEnemiesFrozenIdRed: 0,
+  makeEnemiesFrozenIdBlue: 0,
+  makeEnemiesFrozenRed: false,
+  makeEnemiesFrozenBlue: false,
+  timeTravelBall: false,
+  timeTravelBallId: 0,
+  timeTravelBallCoordinates: null,
+}
 
 // Room states.
 const roomStates = {
+  gameId: 0,
   gameStarted: false,
   gameLocked: false,
   gamePhase: "idle",
-  lastTouch: null,
+  gameTick: 0, 
+  lastTouch: null, // player id 
+  kickCount: 0, // Increases per kick to the ball
+  positionId: 0, // Increases per position reset
   teamSelecting: 0,
   autoSelectTimeout: null,
   scores: {
     red: 0,
     blue: 0,
     time: 0.00,
+  },
+  strangenesses: {
+    ...strangenessesInit
   }
 }
 
@@ -100,8 +125,19 @@ window.onHBLoaded = () => {
 
   }
 
+  room.onPositionsReset = () => {
+    console.log("res");
+    roomStates.positionId += 1;
+    players.onPositionsReset();
+  }
+
   room.onGameTick = () => {
-   
+    players.assignPosition();
+    strangenessUsage.filter(pre => pre.tick === roomStates.gameTick && pre.positionId === roomStates.positionId).forEach(pre => pre.invoke());
+    game.checkIfPlayersFrozen();
+    game.checkIfPlayersSelfFrozen();
+    game.checkIfPlayersAreSuperman();
+    roomStates.gameTick += 1;
   }
 
   room.onPlayerTeamChange = (changedPlayer, byPlayer) => {
@@ -111,15 +147,24 @@ window.onHBLoaded = () => {
 
   room.onPlayerBallKick = (player) => {
     game.onPlayerBallKick(player);
+    let {x: bx, y: by} = room.getDiscProperties(0);
+    room.sendAnnouncement(`bx: ${bx}, by: ${by}`);
+    let {x: px, y: py} = room.getPlayerDiscProperties(player.id);
+    room.sendAnnouncement(`px: ${px}, py: ${py}`);
+    room.sendAnnouncement(`dx: ${px - bx}, dy: ${py - by}, rxy: ${(px - bx) / (py - by)}`);
+    setTimeout(() => {
+        let {xspeed, yspeed} = room.getDiscProperties(0);
+        room.sendAnnouncement(`xspd: ${xspeed}, yspd: ${yspeed}`)
+    }, 300);
+  }
+
+  room.onPlayerActivity = (player) => {
+    game.useSpeedBoost(player);
   }
 
   room.onPlayerChat = (player, message) => {
     processChat(player, message)
     return true
-  }
-
-  room.onPlayerActivity = (player) => {
-
   }
 }
 //** MAIN **//
@@ -128,6 +173,8 @@ window.onHBLoaded = () => {
 if (typeof window.HBInit === 'function') {
   window.onHBLoaded()
 }
+
+export let DEFAULT_AVATAR = "🤡";
 
 // Import this whenever you want to use functionality of Haxball Headless Room API.
 export { room }

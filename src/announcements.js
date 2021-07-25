@@ -36,6 +36,12 @@ const announcements = {
         color: COLORS.WARNING,
         en: "The game will start when there are at least two people.",
         tr: "Oyun, en az iki kişi olunca başlayacak.",
+    },
+    SPEED_BOOST: {
+        inputCount: 0,
+        color: COLORS.FUN,
+        en: "You have speed boost now. Press arrow keys or kick key over and over to use this. I am sure that you are gonna master it one day ;)",
+        tr: "Hız güçlendiricin var. Yön tuşlarına veya vuruş tuşuna üst üste basarak kullanabilirsin. Bir gün ustalaşacağından eminim ;)"
     }
 }
 

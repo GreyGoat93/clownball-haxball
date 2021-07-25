@@ -41,11 +41,13 @@ __webpack_require__.r(__webpack_exports__);
 // EXPORTS
 __webpack_require__.d(__webpack_exports__, {
   "ADMIN": () => (/* binding */ ADMIN),
+  "DEFAULT_AVATAR": () => (/* binding */ DEFAULT_AVATAR),
   "SYSTEM": () => (/* binding */ SYSTEM),
   "makeSystemDefault": () => (/* binding */ makeSystemDefault),
   "playerList": () => (/* binding */ room_playerList),
   "room": () => (/* binding */ room_room),
-  "roomStates": () => (/* binding */ roomStates)
+  "roomStates": () => (/* binding */ roomStates),
+  "strangenessesInit": () => (/* binding */ strangenessesInit)
 });
 
 ;// CONCATENATED MODULE: ./src/announcements.js
@@ -84,6 +86,12 @@ const announcements = {
     color: COLORS.WARNING,
     en: "The game will start when there are at least two people.",
     tr: "Oyun, en az iki kişi olunca başlayacak."
+  },
+  SPEED_BOOST: {
+    inputCount: 0,
+    color: COLORS.FUN,
+    en: "You have speed boost now. Press arrow keys or kick key over and over to use this. I am sure that you are gonna master it one day ;)",
+    tr: "Hız güçlendiricin var. Yön tuşlarına veya vuruş tuşuna üst üste basarak kullanabilirsin. Bir gün ustalaşacağından eminim ;)"
   }
 };
 
@@ -149,6 +157,12 @@ const notice = (announcementCode, inputs = [], player, color = null) => {
 };
 
 
+;// CONCATENATED MODULE: ./src/helper/randomNumber.js
+const generateRandomNumber = function (from, to) {
+  return Math.floor(Math.random() * (to - from)) + from;
+};
+
+
 ;// CONCATENATED MODULE: ./src/helper/ipConverter.js
 const connStringToIp = function (conn) {
   if (typeof conn === "string") {
@@ -175,8 +189,22 @@ const connStringToIp = function (conn) {
 
 
 
-const INITIAL_VALUES = {
-  afk: false
+const INITIAL_PLAYER_VALUES = {
+  afk: false,
+  strangenesses: {
+    speedBoost: false,
+    speedBoostId: 0,
+    bigPlayerSelfId: 0,
+    frozenCoordinates: null,
+    selfFrozen: false,
+    selfFrozenId: 0,
+    selfFrozenCoordinates: null,
+    timeTravel: false,
+    timeTravelCoordinates: null,
+    timeTravelId: 0,
+    superman: false,
+    supermanId: 0
+  }
 };
 /* harmony default export */ const players = ({
   onPlayerJoin: function (player) {
@@ -190,7 +218,7 @@ const INITIAL_VALUES = {
 
     if (!isKickable) {
       const newPlayer = { ...player,
-        ...INITIAL_VALUES,
+        ...INITIAL_PLAYER_VALUES,
         ip: connStringToIp(player.conn)
       };
       room_playerList.push(newPlayer);
@@ -210,6 +238,45 @@ const INITIAL_VALUES = {
   onPlayerTeamChange: function (changedPlayer, byPlayer) {
     const player = this.findPlayerById(changedPlayer.id);
     player.team = changedPlayer.team;
+
+    if ([1, 2].includes(player.team)) {
+      if (player.team === 1) {
+        room_room.setPlayerDiscProperties(player.id, {
+          x: -400
+        });
+      } else if (player.team === 2) {
+        room_room.setPlayerDiscProperties(player.id, {
+          x: 400
+        });
+      }
+
+      if (roomStates.strangenesses.makeEnemiesSmallerRed && player.team === 1) {
+        room_room.setPlayerDiscProperties(player.id, {
+          radius: 5
+        });
+      }
+
+      if (roomStates.strangenesses.makeEnemiesSmallerBlue && player.team === 2) {
+        room_room.setPlayerDiscProperties(player.id, {
+          radius: 5
+        });
+      }
+
+      if (roomStates.strangenesses.makeEnemiesFrozenRed && player.team === 1) {
+        player.strangenesses.frozenX = -400;
+        player.strangenesses.frozenY = 0;
+      }
+
+      if (roomStates.strangenesses.makeEnemiesFrozenBlue && player.team === 2) {
+        player.strangenesses.frozenX = 400;
+        player.strangenesses.frozenY = 0;
+      }
+    }
+
+    setTimeout(() => {
+      console.log(this.findPlayersByTeam(1));
+      console.log(this.findPlayersByTeam(2));
+    }, 5000);
   },
   findPlayerById: function (id) {
     return room_playerList.find(pre => pre.id === id);
@@ -233,13 +300,585 @@ const INITIAL_VALUES = {
   },
   getPlayersPlaying: function () {
     return room_playerList.filter(pre => pre.team !== 0);
+  },
+  onPositionsReset: function () {
+    room_playerList.forEach(player => {
+      player.strangenesses = { ...INITIAL_PLAYER_VALUES.strangenesses
+      };
+    });
+    roomStates.strangenesses = { ...strangenessesInit
+    };
+  },
+  assignPosition: function () {
+    room_playerList.forEach(player => {
+      const _player = room_room.getPlayer(player.id);
+
+      player.position = _player.position;
+    });
   }
 });
+;// CONCATENATED MODULE: ./src/strangeness.js
+
+
+
+
+
+let strangenessUsage = [];
+const strangenesses = [{
+  id: "TELEPORT_KICKER",
+  type: "immediatly",
+
+  invoke(playerKicked) {
+    let playerProps = room_room.getPlayerDiscProperties(playerKicked.id);
+    room_room.setPlayerDiscProperties(playerKicked.id, {
+      x: playerProps.x - generateRandomNumber(-200, 200),
+      y: playerProps.y - generateRandomNumber(-200, 200)
+    });
+  }
+
+}, {
+  id: "PULL_BACK_KICKER",
+
+  invoke(playerKicked) {
+    let playerProps = room_room.getPlayerDiscProperties(playerKicked.id);
+    let ballProps = room_room.getDiscProperties(0);
+    let dx = playerProps.x - ballProps.x;
+    let dy = playerProps.y - ballProps.y;
+    room_room.setPlayerDiscProperties(playerKicked.id, {
+      xspeed: playerProps.xspeed + dx / 1.4,
+      yspeed: playerProps.yspeed + dy / 1.4
+    });
+  }
+
+}, {
+  id: "SHOOT",
+
+  invoke(playerKicked) {
+    let {
+      x,
+      y,
+      xspeed,
+      yspeed
+    } = room_room.getDiscProperties(0);
+    let {
+      x: px,
+      y: py
+    } = room_room.getPlayerDiscProperties(playerKicked.id);
+    let dx = x - px;
+    let dy = y - py;
+    let distance = 20 / Math.sqrt(dx * dx + dy * dy);
+    room_room.setDiscProperties(0, {
+      xspeed: xspeed + dx * distance,
+      yspeed: xspeed + dy * distance,
+      color: 0xffce00
+    });
+    strangenessUsage.push({
+      tick: roomStates.gameTick + 5,
+      positionId: roomStates.positionId,
+
+      invoke() {
+        room_room.setDiscProperties(0, {
+          color: 0xff5a00
+        });
+      }
+
+    });
+    strangenessUsage.push({
+      tick: roomStates.gameTick + 10,
+      positionId: roomStates.positionId,
+
+      invoke() {
+        room_room.setDiscProperties(0, {
+          color: 0xff0000
+        });
+      }
+
+    });
+    strangenessUsage.push({
+      tick: roomStates.gameTick + 15,
+      positionId: roomStates.positionId,
+
+      invoke() {
+        room_room.setDiscProperties(0, {
+          color: 0xff5a00
+        });
+      }
+
+    });
+    strangenessUsage.push({
+      tick: roomStates.gameTick + 20,
+      positionId: roomStates.positionId,
+
+      invoke() {
+        room_room.setDiscProperties(0, {
+          color: 0xffce00
+        });
+      }
+
+    });
+    strangenessUsage.push({
+      tick: roomStates.gameTick + 25,
+      positionId: roomStates.positionId,
+
+      invoke() {
+        room_room.setDiscProperties(0, {
+          color: 0xffffff
+        });
+      }
+
+    });
+  }
+
+}, {
+  id: "PLUNGER",
+
+  invoke(playerKicked) {
+    let {
+      x,
+      y
+    } = room_room.getDiscProperties(0);
+    let {
+      x: px,
+      y: py
+    } = room_room.getPlayerDiscProperties(playerKicked.id);
+    let dx = px - x;
+    let dy = py - y;
+    let distance = 4 / Math.sqrt(dx * dx + dy * dy);
+    room_room.setDiscProperties(0, {
+      xspeed: dx * distance,
+      yspeed: dy * distance
+    });
+  }
+
+}, {
+  id: "TROLL_THE_WAY",
+
+  invoke(playerKicked) {
+    let {
+      x,
+      y,
+      radius: r
+    } = room_room.getDiscProperties(0);
+    let {
+      x: px,
+      y: py,
+      radius: pr
+    } = room_room.getPlayerDiscProperties(playerKicked.id);
+    let dx = (px - x) * -1;
+    let dy = (py - y) * -1;
+    room_room.setPlayerDiscProperties(playerKicked.id, {
+      x: x + dx,
+      y: y + dy
+    });
+  }
+
+}, {
+  id: "SUPERMAN",
+
+  invoke(playerKicked) {
+    let _player = players.findPlayerById(playerKicked.id);
+
+    _player.strangenesses.superman = true;
+    let supermanId = _player.strangenesses.supermanId += 1;
+    room_room.setPlayerAvatar(_player.id, "🦸");
+    strangenessUsage.push({
+      tick: roomStates.gameTick + 45,
+      positionId: roomStates.positionId,
+
+      invoke() {
+        if (supermanId === _player.strangenesses.supermanId) {
+          _player.strangenesses.superman = false;
+          room_room.setPlayerAvatar(_player.id, DEFAULT_AVATAR);
+        }
+      }
+
+    });
+  }
+
+}, {
+  id: "SWAP_PLAYERS",
+
+  invoke(playerKicked) {
+    let redTeam = players.findPlayersByTeam(1);
+    let blueTeam = players.findPlayersByTeam(2);
+    redTeam.forEach((player, index) => {
+      if (blueTeam[index]) {
+        let {
+          x: redX,
+          y: redY
+        } = room_room.getPlayerDiscProperties(player.id);
+        let {
+          x: blueX,
+          y: blueY
+        } = room_room.getPlayerDiscProperties(blueTeam[index].id);
+        room_room.setPlayerDiscProperties(player.id, {
+          x: blueX,
+          y: blueY
+        });
+        room_room.setPlayerDiscProperties(blueTeam[index].id, {
+          x: redX,
+          y: redY
+        });
+        room_room.setPlayerAvatar(player.id, "😵");
+        room_room.setPlayerAvatar(blueTeam[index].id, "😵");
+      }
+    });
+    strangenessUsage.push({
+      tick: roomStates.gameTick + 30,
+      positionId: roomStates.positionId,
+
+      invoke() {
+        room_playerList.forEach(player => room_room.setPlayerAvatar(player.id, DEFAULT_AVATAR));
+      }
+
+    });
+  }
+
+}, {
+  id: "BIG_BALL",
+
+  invoke(playerKicked) {
+    room_room.setDiscProperties(0, {
+      radius: 30
+    });
+    const ballRadiusId = roomStates.strangenesses.ballRadiusId += 1;
+    strangenessUsage.push({
+      tick: roomStates.gameTick + 180,
+      positionId: roomStates.positionId,
+
+      invoke() {
+        if (ballRadiusId === roomStates.strangenesses.ballRadiusId) {
+          room_room.setDiscProperties(0, {
+            radius: 10
+          });
+        }
+      }
+
+    });
+  }
+
+}, {
+  id: "SMALL_BALL",
+
+  invoke(playerKicked) {
+    room_room.setDiscProperties(0, {
+      radius: 3
+    });
+    const ballRadiusId = roomStates.strangenesses.ballRadiusId += 1;
+    strangenessUsage.push({
+      tick: roomStates.gameTick + 180,
+      positionId: roomStates.positionId,
+
+      invoke() {
+        if (ballRadiusId === roomStates.strangenesses.ballRadiusId) {
+          room_room.setDiscProperties(0, {
+            radius: 10
+          });
+        }
+      }
+
+    });
+  }
+
+}, {
+  id: "BIG_PLAYER_SELF",
+
+  invoke(playerKicked) {
+    const _player = players.findPlayerById(playerKicked.id);
+
+    const bigPlayerSelfId = _player.strangenesses.bigPlayerSelfId += 1;
+    room_room.setPlayerDiscProperties(playerKicked.id, {
+      radius: generateRandomNumber(20, 40)
+    });
+    strangenessUsage.push({
+      tick: roomStates.gameTick + 180,
+      positionId: roomStates.positionId,
+
+      invoke() {
+        if (_player.strangenesses.bigPlayerSelfId === bigPlayerSelfId) {
+          room_room.setPlayerDiscProperties(playerKicked.id, {
+            radius: 15
+          });
+        }
+      }
+
+    });
+  }
+
+}, {
+  id: "SPEED_BOOST",
+
+  invoke(playerKicked) {
+    room_room.setPlayerAvatar(_player.id, "🚀");
+
+    const _player = players.findPlayerById(playerKicked.id);
+
+    const speedBoostId = _player.strangenesses.speedBoostId += 1;
+    _player.strangenesses.speedBoost = true;
+    notice("SPEED_BOOST", [], _player.id);
+    strangenessUsage.push({
+      tick: roomStates.gameTick + 300,
+      positionId: roomStates.positionId,
+
+      invoke() {
+        if (_player.strangenesses.speedBoostId === speedBoostId) {
+          _player.strangenesses.speedBoost = false;
+          room_room.setPlayerAvatar(_player.id, DEFAULT_AVATAR);
+        }
+      }
+
+    });
+  }
+
+}, {
+  id: "MAKE_ENEMIES_SMALLER",
+
+  invoke(playerKicked) {
+    const enemyTeam = game.convertTeam(playerKicked.team);
+    players.findPlayersByTeam(enemyTeam).forEach(player => room_room.setPlayerDiscProperties(player.id, {
+      radius: 5
+    }));
+    let makeEnemiesSmallerIdRed = null;
+    let makeEnemiesSmallerIdBlue = null;
+
+    if (enemyTeam === 1) {
+      makeEnemiesSmallerIdRed = roomStates.strangenesses.makeEnemiesSmallerIdRed += 1;
+      roomStates.strangenesses.makeEnemiesSmallerRed = true;
+    }
+
+    if (enemyTeam === 2) {
+      makeEnemiesSmallerIdBlue = roomStates.strangenesses.makeEnemiesSmallerIdBlue += 1;
+      roomStates.strangenesses.makeEnemiesSmallerBlue = true;
+    }
+
+    strangenessUsage.push({
+      tick: roomStates.gameTick + 15000,
+      positionId: roomStates.positionId,
+
+      invoke() {
+        if (roomStates.strangenesses.makeEnemiesSmallerIdRed === makeEnemiesSmallerIdRed) {
+          roomStates.strangenesses.makeEnemiesSmallerRed = false;
+        }
+
+        if (roomStates.strangenesses.makeEnemiesSmallerIdBlue === makeEnemiesSmallerIdBlue) {
+          roomStates.strangenesses.makeEnemiesSmallerBlue = false;
+        }
+
+        players.findPlayersByTeam(enemyTeam).forEach(player => room_room.setPlayerDiscProperties(player.id, {
+          radius: 15
+        }));
+      }
+
+    });
+  }
+
+}, {
+  id: "FROZEN_BALL",
+
+  invoke(playerKicked) {
+    roomStates.strangenesses.frozenBall = true;
+    const frozenBallId = roomStates.strangenesses.frozenBallId += 1;
+    room_room.setDiscProperties(0, {
+      invMass: 0,
+      color: 0x3FD0D4,
+      xspeed: 0,
+      yspeed: 0
+    });
+    strangenessUsage.push({
+      tick: roomStates.gameTick + 120,
+      positionId: roomStates.positionId,
+
+      invoke() {
+        if (frozenBallId === roomStates.strangenesses.frozenBallId) {
+          roomStates.strangenesses.frozenBall = false;
+          room_room.setDiscProperties(0, {
+            invMass: 1,
+            color: 0xFFFFFF
+          });
+        }
+      }
+
+    });
+  }
+
+}, {
+  id: "MAKE_ENEMIES_FROZEN",
+
+  invoke(playerKicked) {
+    const enemyTeam = game.convertTeam(playerKicked.team);
+    let makeEnemiesFrozenIdRed = null;
+    let makeEnemiesFrozenIdBlue = null;
+
+    let decidePlayersFrozenLocation = function (teamId, isActive) {
+      let _players = players.findPlayersByTeam(teamId);
+
+      for (let i = 0; i < _players.length; i++) {
+        let player = _players[i];
+
+        if (isActive) {
+          var _player$strangenesses, _player$strangenesses2, _player$position, _player$position2;
+
+          room_room.setPlayerAvatar(player.id, "🥶");
+          player.strangenesses.frozenCoordinates = player.position ? { ...player.position
+          } : null;
+          room_room.sendAnnouncement(`id {${player.id}}: ${(_player$strangenesses = player.strangenesses.frozenCoordinates) === null || _player$strangenesses === void 0 ? void 0 : _player$strangenesses.x}, ${(_player$strangenesses2 = player.strangenesses.frozenCoordinates) === null || _player$strangenesses2 === void 0 ? void 0 : _player$strangenesses2.y}`);
+          room_room.sendAnnouncement(`id {${player.id}}: ${(_player$position = player.position) === null || _player$position === void 0 ? void 0 : _player$position.x}, ${(_player$position2 = player.position) === null || _player$position2 === void 0 ? void 0 : _player$position2.y}`);
+        } else {
+          room_room.setPlayerAvatar(player.id, DEFAULT_AVATAR);
+          player.strangenesses.frozenCoordinates = null;
+        }
+      }
+    };
+
+    if (enemyTeam === 1) {
+      decidePlayersFrozenLocation(1, true);
+      makeEnemiesFrozenIdRed = roomStates.strangenesses.makeEnemiesFrozenIdRed += 1;
+      roomStates.strangenesses.makeEnemiesFrozenRed = true;
+    }
+
+    if (enemyTeam === 2) {
+      decidePlayersFrozenLocation(2, true);
+      makeEnemiesFrozenIdBlue = roomStates.strangenesses.makeEnemiesFrozenIdBlue += 1;
+      roomStates.strangenesses.makeEnemiesFrozenBlue = true;
+    }
+
+    strangenessUsage.push({
+      tick: roomStates.gameTick + 90,
+      positionId: roomStates.positionId,
+
+      invoke() {
+        if (roomStates.strangenesses.makeEnemiesFrozenIdRed === makeEnemiesFrozenIdRed) {
+          roomStates.strangenesses.makeEnemiesFrozenRed = false;
+          decidePlayersFrozenLocation(1, false);
+        }
+
+        if (roomStates.strangenesses.makeEnemiesFrozenIdBlue === makeEnemiesFrozenIdBlue) {
+          roomStates.strangenesses.makeEnemiesFrozenBlue = false;
+          decidePlayersFrozenLocation(2, false);
+        }
+      }
+
+    });
+  }
+
+}, {
+  id: "MAKE_SELF_FROZEN",
+
+  invoke(playerKicked) {
+    const _player = players.findPlayerById(playerKicked.id);
+
+    room_room.setPlayerAvatar(_player.id, "🥶");
+    _player.strangenesses.selfFrozen = true;
+    _player.strangenesses.selfFrozenCoordinates = _player.position ? { ..._player.position
+    } : null;
+    let selfFrozenId = _player.strangenesses.selfFrozenId += 1;
+    strangenessUsage.push({
+      tick: roomStates.gameTick + 150,
+      positionId: roomStates.positionId,
+
+      invoke() {
+        if (selfFrozenId === _player.strangenesses.selfFrozenId) {
+          _player.strangenesses.selfFrozen = false;
+          _player.strangenesses.selfFrozenCoordinates = null;
+          room_room.setPlayerAvatar(_player.id, DEFAULT_AVATAR);
+        }
+      }
+
+    });
+  }
+
+}, {
+  id: "TIME_TRAVEL_SELF",
+
+  invoke(playerKicked) {
+    const _player = players.findPlayerById(playerKicked.id);
+
+    _player.strangenesses.timeTravel = true;
+    _player.strangenesses.timeTravelCoordinates = _player.position ? { ..._player.position
+    } : null;
+    room_room.setPlayerAvatar(_player.id, "🕐");
+    let timeTravelId = _player.strangenesses.timeTravelId += 1;
+    let timeEmojis = ["🕑", "🕒", "🕓", "🕔", "🕕", "🕖", "🕗", "🕘", "🕙"];
+    let timeTick = 0;
+    timeEmojis.forEach(timeEmoji => {
+      timeTick += 20;
+      strangenessUsage.push({
+        tick: roomStates.gameTick + timeTick,
+        positionId: roomStates.positionId,
+
+        invoke() {
+          if (timeTravelId === _player.strangenesses.timeTravelId) {
+            room_room.setPlayerAvatar(_player.id, timeEmoji);
+          }
+        }
+
+      });
+    });
+    strangenessUsage.push({
+      tick: roomStates.gameTick + 200,
+      positionId: roomStates.positionId,
+
+      invoke() {
+        if (timeTravelId === _player.strangenesses.timeTravelId) {
+          var _player$strangenesses3, _player$strangenesses4;
+
+          _player.strangenesses.timeTravel = false;
+          let x = (_player$strangenesses3 = _player.strangenesses.timeTravelCoordinates) === null || _player$strangenesses3 === void 0 ? void 0 : _player$strangenesses3.x;
+          let y = (_player$strangenesses4 = _player.strangenesses.timeTravelCoordinates) === null || _player$strangenesses4 === void 0 ? void 0 : _player$strangenesses4.y;
+          room_room.setPlayerDiscProperties(_player.id, {
+            x,
+            y
+          });
+          room_room.setPlayerAvatar(_player.id, DEFAULT_AVATAR);
+        }
+      }
+
+    });
+  }
+
+}, {
+  id: "TIME_TRAVEL_BALL",
+
+  invoke(playerKicked) {
+    const {
+      x,
+      y
+    } = room_room.getDiscProperties(0);
+    roomStates.strangenesses.timeTravelBall = true;
+    let timeTravelBallId = roomStates.strangenesses.timeTravelBallId += 1;
+    roomStates.strangenesses.timeTravelBallCoordinates = {
+      x,
+      y
+    };
+    strangenessUsage.push({
+      tick: roomStates.gameTick + 180,
+      positionId: roomStates.positionId,
+
+      invoke() {
+        if (timeTravelBallId === roomStates.strangenesses.timeTravelBallId) {
+          var _roomStates$strangene, _roomStates$strangene2;
+
+          let dx = (_roomStates$strangene = roomStates.strangenesses.timeTravelBallCoordinates) === null || _roomStates$strangene === void 0 ? void 0 : _roomStates$strangene.x;
+          let dy = (_roomStates$strangene2 = roomStates.strangenesses.timeTravelBallCoordinates) === null || _roomStates$strangene2 === void 0 ? void 0 : _roomStates$strangene2.y;
+          room_room.setDiscProperties(0, {
+            x: dx,
+            y: dy
+          });
+          roomStates.strangenesses.timeTravelBall = false;
+        }
+      }
+
+    });
+  }
+
+}];
 ;// CONCATENATED MODULE: ./src/game.js
 
 
 
 
+
+let sexxx = 0;
 /* harmony default export */ const game = ({
   checkTheGame: function () {
     const playables = players.findPlayables();
@@ -247,24 +886,8 @@ const INITIAL_VALUES = {
     const redTeam = players.findPlayersByTeam(1);
     const blueTeam = players.findPlayersByTeam(2);
 
-    if (true) {
-      console.log("-------------------");
-      console.log(roomStates.gamePhase);
-      console.log("RED");
-      console.log(redTeam);
-      console.log("BLUE");
-      console.log(blueTeam);
-      console.log("PLAYABLES");
-      console.log(playables);
-      console.log("PLAYABLES SPEC");
-      console.log(playablesSpec);
-      console.log("-----------------");
-    }
-
     if (roomStates.gamePhase === "idle") {
       if (playables.length === 2) {
-        console.log(playablesSpec);
-
         if (roomStates.gamePhase === "idle") {
           room_room.setPlayerTeam(playablesSpec[0].id, 1);
           room_room.setPlayerTeam(playablesSpec[1].id, 2);
@@ -279,8 +902,6 @@ const INITIAL_VALUES = {
           room_room.stopGame();
         }
       } else if (playables.length === 2) {
-        console.log(playablesSpec);
-
         if (playablesSpec[0]) {
           let emptyTeam = 0;
           if (redTeam.length !== 0) emptyTeam = 2;else if (blueTeam.length !== 0) emptyTeam = 1;
@@ -379,17 +1000,14 @@ const INITIAL_VALUES = {
   },
   selectPlayerAbstraction: function (team, playablesSpec) {
     if (team === 1) {
-      console.log(playablesSpec);
       roomStates.teamSelecting = 1;
       this.autoSelect(1, playablesSpec);
       announceLouder("SELECT_PLAYER", ["Red Team", this.printPlayableSpecs(playablesSpec)]);
     } else if (team === 2) {
-      console.log(playablesSpec);
       roomStates.teamSelecting = 2;
       this.autoSelect(2, playablesSpec);
       announceLouder("SELECT_PLAYER", ["Blue Team", this.printPlayableSpecs(playablesSpec)]);
     } else if (team === 3) {
-      console.log(playablesSpec);
       roomStates.teamSelecting = 3;
       this.autoSelect(3, playablesSpec);
       announceLouder("SELECT_PLAYER", ["All Teams", this.printPlayableSpecs(playablesSpec)]);
@@ -444,19 +1062,32 @@ const INITIAL_VALUES = {
     }
   },
   onGameStart: function () {
+    roomStates.gameId === 0 && room_room.stopGame();
     this.resetOnGameStart();
   },
   resetOnGameStart: function () {
     roomStates.gameStarted = true;
     roomStates.gamePhase = "running";
+    roomStates.gameId += 1;
   },
   onGameStop: function () {
     this.resetOnGameStop();
+    room_room.setDiscProperties(0, {
+      invMass: 0
+    });
   },
   resetOnGameStop: function () {
     roomStates.gameStarted = false;
     roomStates.gameLocked = true;
     roomStates.gamePhase = "choosing";
+    roomStates.gameTick = 0;
+    roomStates.positionId += 0;
+    sexxx = 0;
+    strangenessUsage = [];
+    room_playerList.forEach(player => player.strangenesses = { ...INITIAL_PLAYER_VALUES.strangenesses
+    });
+    roomStates.strangenesses = { ...strangenessesInit
+    };
     this.checkTheGame();
   },
   onPlayerLeave: function (player) {},
@@ -496,10 +1127,84 @@ const INITIAL_VALUES = {
       room_room.stopGame();
     }, 1000);
   },
-  onPlayerBallKick: function (player) {},
+  onPlayerBallKick: function (player) {
+    let _strangenesses = strangenesses; // strangenesses[Math.floor(Math.random() * 7)].invoke(player);
+
+    if (!roomStates.strangenesses.frozenBall) {
+      var _strangenesses$find;
+
+      // sexxx % 2 === 1 && _strangenesses.find(pre => pre.id === "SMALL_BALL")?.invoke(player);
+      sexxx % 1 === 0 && ((_strangenesses$find = _strangenesses.find(pre => pre.id === "SHOOT")) === null || _strangenesses$find === void 0 ? void 0 : _strangenesses$find.invoke(player));
+      sexxx += 1;
+    }
+  },
   getPlayersDiscProperties: function () {
     room_room.getPlayerList().forEach(el => {
       console.log(room_room.getPlayerDiscProperties(el.id));
+    });
+  },
+  useSpeedBoost: function (player) {
+    const _player = players.findPlayerById(player.id);
+
+    if (_player.strangenesses.speedBoost) {
+      let playerProps = room_room.getPlayerDiscProperties(player.id);
+      room_room.setPlayerDiscProperties(player.id, {
+        xspeed: playerProps.xspeed * 1.15,
+        yspeed: playerProps.yspeed * 1.15
+      });
+    }
+  },
+  checkIfPlayersFrozen: function () {
+    const freezePlayers = function (teamId) {
+      players.findPlayersByTeam(teamId).forEach(player => {
+        var _player$strangenesses, _player$strangenesses2;
+
+        room_room.setPlayerDiscProperties(player.id, {
+          x: (_player$strangenesses = player.strangenesses.frozenCoordinates) === null || _player$strangenesses === void 0 ? void 0 : _player$strangenesses.x,
+          y: (_player$strangenesses2 = player.strangenesses.frozenCoordinates) === null || _player$strangenesses2 === void 0 ? void 0 : _player$strangenesses2.y,
+          xspeed: 0,
+          yspeed: 0
+        });
+      });
+      sexxx += 1;
+    };
+
+    if (roomStates.strangenesses.makeEnemiesFrozenRed) {
+      freezePlayers(1);
+    }
+
+    if (roomStates.strangenesses.makeEnemiesFrozenBlue) {
+      freezePlayers(2);
+    }
+  },
+  checkIfPlayersSelfFrozen: function () {
+    room_playerList.forEach(player => {
+      if (player.strangenesses.selfFrozen) {
+        var _player$strangenesses3, _player$strangenesses4;
+
+        let x = (_player$strangenesses3 = player.strangenesses.selfFrozenCoordinates) === null || _player$strangenesses3 === void 0 ? void 0 : _player$strangenesses3.x;
+        let y = (_player$strangenesses4 = player.strangenesses.selfFrozenCoordinates) === null || _player$strangenesses4 === void 0 ? void 0 : _player$strangenesses4.y;
+        room_room.setPlayerDiscProperties(player.id, {
+          x,
+          y,
+          xspeed: 0,
+          yspeed: 0
+        });
+      }
+    });
+  },
+  checkIfPlayersAreSuperman: function () {
+    room_playerList.forEach(player => {
+      if (player.strangenesses.superman) {
+        let {
+          xspeed,
+          yspeed
+        } = room_room.getDiscProperties(0);
+        room_room.setPlayerDiscProperties(player.id, {
+          xspeed,
+          yspeed
+        });
+      }
     });
   }
 });
@@ -538,14 +1243,15 @@ const processChat = (player, message) => {
 
 
 
+
  // Create room variable to use in exports.
 
 let room_room; // Rooms properties when initializing.
 
 const ROOM_INIT_PROPERTIES = {
-  token: "thr1.AAAAAGD5Zz0zMg61JCsTmw.WRW1TOCQpgI",
+  token: "thr1.AAAAAGD9pPEnwu3VKXp6-Q.PHzOxFzI0_0",
   // Token is REQUIRED to have this app to skip the recapctha!
-  roomName: `BOT ROOM`,
+  roomName: `🤡 JOKERBALL 7/24 :)`,
   maxPlayers: 15,
   noPlayer: true,
   public: false,
@@ -558,9 +1264,9 @@ const ROOM_INIT_PROPERTIES = {
 const SYSTEM = {
   MANAGE_AFKS: false,
   ONE_TAB: false,
-  PEOPLE_COUNT_BY_TEAM: 3,
+  PEOPLE_COUNT_BY_TEAM: 5,
   GAME_TIME_LIMIT: 0,
-  GAME_SCORE_LIMIT: 1
+  GAME_SCORE_LIMIT: 2
 };
 
 const makeSystemDefault = () => {
@@ -573,20 +1279,45 @@ const makeSystemDefault = () => {
 
 const ADMIN = {
   PASSWORD: "123456a"
-}; //gamePhase: "idle" | "choosing" | "running"
-// Room states.
+}; //gamePhase: "idle" | "choosing" | "running" | "finishing"
+
+const strangenessesInit = {
+  ballRadiusId: 0,
+  makeEnemiesSmallerIdRed: 0,
+  makeEnemiesSmallerIdBlue: 0,
+  makeEnemiesSmallerRed: false,
+  makeEnemiesSmallerBlue: false,
+  frozenBall: false,
+  frozenBallId: 0,
+  makeEnemiesFrozenIdRed: 0,
+  makeEnemiesFrozenIdBlue: 0,
+  makeEnemiesFrozenRed: false,
+  makeEnemiesFrozenBlue: false,
+  timeTravelBall: false,
+  timeTravelBallId: 0,
+  timeTravelBallCoordinates: null
+}; // Room states.
 
 const roomStates = {
+  gameId: 0,
   gameStarted: false,
   gameLocked: false,
   gamePhase: "idle",
+  gameTick: 0,
   lastTouch: null,
+  // player id 
+  kickCount: 0,
+  // Increases per kick to the ball
+  positionId: 0,
+  // Increases per position reset
   teamSelecting: 0,
   autoSelectTimeout: null,
   scores: {
     red: 0,
     blue: 0,
     time: 0.00
+  },
+  strangenesses: { ...strangenessesInit
   }
 }; // Player list and their states.
 
@@ -626,7 +1357,20 @@ window.onHBLoaded = () => {
 
   room_room.onTeamGoal = teamID => {};
 
-  room_room.onGameTick = () => {};
+  room_room.onPositionsReset = () => {
+    console.log("res");
+    roomStates.positionId += 1;
+    players.onPositionsReset();
+  };
+
+  room_room.onGameTick = () => {
+    players.assignPosition();
+    strangenessUsage.filter(pre => pre.tick === roomStates.gameTick && pre.positionId === roomStates.positionId).forEach(pre => pre.invoke());
+    game.checkIfPlayersFrozen();
+    game.checkIfPlayersSelfFrozen();
+    game.checkIfPlayersAreSuperman();
+    roomStates.gameTick += 1;
+  };
 
   room_room.onPlayerTeamChange = (changedPlayer, byPlayer) => {
     players.onPlayerTeamChange(changedPlayer, byPlayer);
@@ -635,22 +1379,43 @@ window.onHBLoaded = () => {
 
   room_room.onPlayerBallKick = player => {
     game.onPlayerBallKick(player);
+    let {
+      x: bx,
+      y: by
+    } = room_room.getDiscProperties(0);
+    room_room.sendAnnouncement(`bx: ${bx}, by: ${by}`);
+    let {
+      x: px,
+      y: py
+    } = room_room.getPlayerDiscProperties(player.id);
+    room_room.sendAnnouncement(`px: ${px}, py: ${py}`);
+    room_room.sendAnnouncement(`dx: ${px - bx}, dy: ${py - by}, rxy: ${(px - bx) / (py - by)}`);
+    setTimeout(() => {
+      let {
+        xspeed,
+        yspeed
+      } = room_room.getDiscProperties(0);
+      room_room.sendAnnouncement(`xspd: ${xspeed}, yspd: ${yspeed}`);
+    }, 300);
+  };
+
+  room_room.onPlayerActivity = player => {
+    game.useSpeedBoost(player);
   };
 
   room_room.onPlayerChat = (player, message) => {
     processChat(player, message);
     return true;
   };
-
-  room_room.onPlayerActivity = player => {};
 }; //** MAIN **//
 // Initialize headless room.
 
 
 if (typeof window.HBInit === 'function') {
   window.onHBLoaded();
-} // Import this whenever you want to use functionality of Haxball Headless Room API.
+}
 
+let DEFAULT_AVATAR = "🤡"; // Import this whenever you want to use functionality of Haxball Headless Room API.
 
  // Import this whenever you want to change states of the room.
 
