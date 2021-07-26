@@ -2,7 +2,7 @@ import { playerList, room } from './room.js';
 
 const DISCORD = null;
 
-const COLORS = {
+export const COLORS = {
     DANGER: 0xff2e1f,
     SUCCESS: 0x17ff3a,
     INFO: 0x17f7ff,
@@ -10,6 +10,8 @@ const COLORS = {
     WIN: 0xff840,
     FUN: 0xff52e2,
     WHITE: 0xffffff,
+    RED: 0xE56E56,
+    BLUE: 0x5689E5
 }
 
 const announcements = {
@@ -36,6 +38,12 @@ const announcements = {
         color: COLORS.WARNING,
         en: "The game will start when there are at least two people.",
         tr: "Oyun, en az iki kişi olunca başlayacak.",
+    },
+    BALL_OUT_OF_FIELD: {
+        inputCount: 0,
+        color: COLORS.WARNING,
+        en: "Ball is out of the field. It has been fixed.",
+        tr: "Top saha dışıydı. Düzeltildi.",
     },
     SPEED_BOOST: {
         inputCount: 0,
@@ -87,24 +95,27 @@ const announce = (announcementCode, inputs = [], players = null, color = null) =
     }
 }
 
-const announceLouder = (announcementCode, inputs = [], color = null) => {
+const announceLouder = (announcementCode, inputs = [], color = null, font = null) => {
     let _color = color ? color : announcements[announcementCode].color;
+    let _font = font ? font : "bold";
     let msg = convert(announcementCode, "en", inputs);
-    room.sendAnnouncement(msg, null, _color, "bold", 2);
+    room.sendAnnouncement(msg, null, _color, _font, 2);
 }
 
-const announceTeams = (announcementCode, teams = [], inputs = [], color = null) => {
+const announceTeams = (announcementCode, teams = [], inputs = [], color = null, font = null) => {
     let _color = color ? color : announcements[announcementCode].color;
+    let _font = font ? font : "bold";
     let msg = convert(announcementCode, "en", inputs);
     playerList.filter(pre => teams.includes(pre.team)).forEach(player => {
-        room.sendAnnouncement(msg, player.id, _color, "bold", 2);
+        room.sendAnnouncement(msg, player.id, _color, _font, 2);
     })
 }
 
-const notice = (announcementCode, inputs = [], player, color = null) => {
+const notice = (announcementCode, inputs = [], player, color = null, font = null) => {
     let _color = color ? color : announcements[announcementCode].color;
+    let _font = font ? font : "bold";
     let msg = convert(announcementCode, "en", inputs);
-    room.sendAnnouncement(msg, player.id, _color, "bold", 2);
+    room.sendAnnouncement(msg, player.id, _color, _font, 2);
 }
 
 export {announce, announceLouder, announceTeams, notice, convert};

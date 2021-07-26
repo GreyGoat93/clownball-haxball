@@ -1,8 +1,8 @@
-import {room, playerList, roomStates, SYSTEM, strangenessesInit} from './room.js';
-import {announceLouder, announceTeams} from './announcements';
+import {room, playerList, roomStates, SYSTEM, strangenessesInit, BOUNDS} from './room.js';
+import {announceLouder, announceTeams, COLORS} from './announcements';
 import { strangenesses, strangenessUsage } from './strangeness.js';
 import { getAngleBetweenTwoDiscs } from './helper/math';
-import players, { INITIAL_PLAYER_VALUES } from './players.js'
+import players, { INITIAL_PLAYER_VALUES, INV_MASS_PLAYER } from './players.js'
 
 let sexxx = 0;
 
@@ -47,7 +47,7 @@ export default {
                     } else if(playablesSpec.length === 1){
                         room.setPlayerTeam(playablesSpec[0].id, 2)
                     } else if(playablesSpec.length > 1){
-                        if(playablesSpec.length === SYSTEM.PEOPLE_COUNT_BY_TEAM - blueTeam.length){
+                        if(playablesSpec.length === SYSTEM.PEOPLE_COUNT_BY_TEAM + blueTeam.length){
                             room.pauseGame(false);
                             room.setPlayerTeam(playablesSpec[0].id, 2)
                         } else {
@@ -61,7 +61,7 @@ export default {
                     } else if(playablesSpec.length === 1){
                         room.setPlayerTeam(playablesSpec[0].id, 1)
                     } else if(playablesSpec.length > 1){
-                        if(playablesSpec.length === SYSTEM.PEOPLE_COUNT_BY_TEAM - redTeam.length){
+                        if(playablesSpec.length === SYSTEM.PEOPLE_COUNT_BY_TEAM + redTeam.length){
                             room.pauseGame(false);
                             room.setPlayerTeam(playablesSpec[0].id, 1);
                         } else {
@@ -130,15 +130,15 @@ export default {
         if(team === 1){
             roomStates.teamSelecting = 1;
             this.autoSelect(1, playablesSpec);
-            announceTeams("SELECT_PLAYER", [1], ["Red Team", this.printPlayableSpecs(playablesSpec)]);
+            announceTeams("SELECT_PLAYER", [1], ["Red Team", this.printPlayableSpecs(playablesSpec)], COLORS.RED, "small-bold");
         } else if(team === 2){
             roomStates.teamSelecting = 2;
             this.autoSelect(2, playablesSpec);
-            announceTeams("SELECT_PLAYER", [2], ["Blue Team", this.printPlayableSpecs(playablesSpec)]);
+            announceTeams("SELECT_PLAYER", [2], ["Blue Team", this.printPlayableSpecs(playablesSpec)], COLORS.BLUE, "small-bold");
         } else if(team === 3){
             roomStates.teamSelecting = 3;
             this.autoSelect(3, playablesSpec);
-            announceTeams("SELECT_PLAYER", [1, 2], ["All Teams", this.printPlayableSpecs(playablesSpec)]);
+            announceTeams("SELECT_PLAYER", [1, 2], ["All Teams", this.printPlayableSpecs(playablesSpec)], null, "small-bold");
         }
     },
     printPlayableSpecs: function(players = []){
@@ -249,23 +249,36 @@ export default {
     },
     onPlayerBallKick: function(player){
         let _strangenesses = strangenesses;
-        // strangenesses[Math.floor(Math.random() * 7)].invoke(player);
-        if(!roomStates.strangenesses.frozenBall){
-            // sexxx % 2 === 1 && _strangenesses.find(pre => pre.id === "SMALL_BALL")?.invoke(player);
-            sexxx % 1 === 0 && _strangenesses.find(pre => pre.id === "BOMB_BALL")?.invoke(player);
-            sexxx += 1;
-        }
-        
+        roomStates.strangenesses.frozenBall && (_strangenesses = [])
+        console.log();
+        let length = _strangenesses.length;
+        let strangeness = _strangenesses[Math.floor(Math.random() * length)]
+        room.sendAnnouncement(`${strangeness?.id}`)
+        strangeness?.invoke(player);
     },
     makeAllPlayerWeak: function(){
         playerList.filter(players => players.team !== 0).forEach(player => {
-            room.setPlayerDiscProperties(player.id, {invMass: 999999999})
+            room.setPlayerDiscProperties(player.id, {invMass: INV_MASS_PLAYER})
         })
     },
     getPlayersDiscProperties: function(){
         room.getPlayerList().forEach(el => {
             console.log(room.getPlayerDiscProperties(el.id));
         });
+    },
+    checkBallInTheField(){
+        let {x, y} = room.getDiscProperties(0);
+        if(x > BOUNDS.X1 && x < BOUNDS.X2 && y > BOUNDS.Y1 && y < BOUNDS.Y2){
+            roomStates.ballOutFieldTick = 0;
+        } else {
+            roomStates.ballOutFieldTick += 1;
+        }
+
+        if(roomStates.ballOutFieldTick >= 300){
+            room.setDiscProperties(0, {x: 0, y: 0, xspeed: 0, yspeed: 0});
+            room.ballOutFieldTick = 0;
+            announceLouder("BALL_OUT_OF_FIELD", []);
+        }
     },
     useSpeedBoost: function(player){
         const _player = players.findPlayerById(player.id);
@@ -306,5 +319,8 @@ export default {
                 room.setPlayerDiscProperties(player.id, {xspeed, yspeed});
             }
         })
+    },
+    checkTimeTravelBall: function(){
+        roomStates.strangenesses.timeTravelBall && room.setDiscProperties(0, {color: -1});
     }
 }

@@ -3,6 +3,8 @@ import {connStringToIp} from './helper/ipConverter'
 import { notice, announce } from './announcements.js';
 import game from './game.js';
 
+export const INV_MASS_PLAYER = 999999999999;
+
 export const INITIAL_PLAYER_VALUES = {
     afk: false,
     strangenesses: {
@@ -54,6 +56,7 @@ export default {
         const player = this.findPlayerById(changedPlayer.id);
         player.team = changedPlayer.team;
         if([1, 2].includes(player.team)){
+            room.setPlayerDiscProperties(player.id, {invMass: INV_MASS_PLAYER});
             if(player.team === 1){
                 room.setPlayerDiscProperties(player.id, {x: -400});
             } else if(player.team === 2){

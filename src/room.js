@@ -3,7 +3,7 @@ import game from './game.js'
 import maps from './maps.js'
 import players from './players.js'
 import {processChat} from './chat';
-import { antiStrangenesses, strangenesses, strangenessUsage } from './strangeness.js';
+import { strangenessUsage } from './strangeness.js';
 
 // Create room variable to use in exports.
 let room;
@@ -11,7 +11,7 @@ let room;
 // Rooms properties when initializing.
 const ROOM_INIT_PROPERTIES = {
   token: process.env.TOKEN, // Token is REQUIRED to have this app to skip the recapctha!
-  roomName: `🤡 JOKERBALL 7/24 :)`,
+  roomName: `🤡 ~JOKERBALL~ [v4] [7/24] :)`,
   maxPlayers: 15,
   noPlayer: true,
   public: false,
@@ -22,6 +22,12 @@ const ROOM_INIT_PROPERTIES = {
   }
 }
 
+export const BOUNDS = {
+  X1: -700,
+  X2: 700,
+  Y1: -320,
+  Y2: 320,
+}
 
 const SYSTEM = {
   MANAGE_AFKS: false,
@@ -33,7 +39,7 @@ const SYSTEM = {
 
 const makeSystemDefault = () => {
   SYSTEM.MANAGE_AFKS = true;
-  SYSTEM.ONE_TAB = false;
+  SYSTEM.ONE_TAB = true;
   SYSTEM.PEOPLE_COUNT_BY_TEAM = 4;
   SYSTEM.GAME_TIME_LIMIT = 2;
   SYSTEM.GAME_SCORE_LIMIT = 3;
@@ -64,6 +70,7 @@ export const strangenessesInit = {
 
 // Room states.
 const roomStates = {
+  ballOutFieldTick: 0,
   gameId: 0,
   gameStarted: false,
   gameLocked: false,
@@ -135,9 +142,11 @@ window.onHBLoaded = () => {
   room.onGameTick = () => {
     players.assignPosition();
     strangenessUsage.filter(pre => pre.tick === roomStates.gameTick && pre.positionId === roomStates.positionId).forEach(pre => pre.invoke());
+    game.checkBallInTheField();
     game.checkIfPlayersFrozen();
     game.checkIfPlayersSelfFrozen();
     game.checkIfPlayersAreSuperman();
+    game.checkTimeTravelBall();
     roomStates.gameTick += 1;
   }
 

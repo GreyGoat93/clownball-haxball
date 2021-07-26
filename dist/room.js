@@ -41,6 +41,7 @@ __webpack_require__.r(__webpack_exports__);
 // EXPORTS
 __webpack_require__.d(__webpack_exports__, {
   "ADMIN": () => (/* binding */ ADMIN),
+  "BOUNDS": () => (/* binding */ BOUNDS),
   "DEFAULT_AVATAR": () => (/* binding */ DEFAULT_AVATAR),
   "SYSTEM": () => (/* binding */ SYSTEM),
   "makeSystemDefault": () => (/* binding */ makeSystemDefault),
@@ -60,7 +61,9 @@ const COLORS = {
   WARNING: 0xffe521,
   WIN: 0xff840,
   FUN: 0xff52e2,
-  WHITE: 0xffffff
+  WHITE: 0xffffff,
+  RED: 0xE56E56,
+  BLUE: 0x5689E5
 };
 const announcements = {
   DEFAULT: {
@@ -86,6 +89,12 @@ const announcements = {
     color: COLORS.WARNING,
     en: "The game will start when there are at least two people.",
     tr: "Oyun, en az iki kişi olunca başlayacak."
+  },
+  BALL_OUT_OF_FIELD: {
+    inputCount: 0,
+    color: COLORS.WARNING,
+    en: "Ball is out of the field. It has been fixed.",
+    tr: "Top saha dışıydı. Düzeltildi."
   },
   SPEED_BOOST: {
     inputCount: 0,
@@ -142,27 +151,33 @@ const announce = (announcementCode, inputs = [], players = null, color = null) =
   }
 };
 
-const announceLouder = (announcementCode, inputs = [], color = null) => {
+const announceLouder = (announcementCode, inputs = [], color = null, font = null) => {
   let _color = color ? color : announcements[announcementCode].color;
+
+  let _font = font ? font : "bold";
 
   let msg = convert(announcementCode, "en", inputs);
-  room_room.sendAnnouncement(msg, null, _color, "bold", 2);
+  room_room.sendAnnouncement(msg, null, _color, _font, 2);
 };
 
-const announceTeams = (announcementCode, teams = [], inputs = [], color = null) => {
+const announceTeams = (announcementCode, teams = [], inputs = [], color = null, font = null) => {
   let _color = color ? color : announcements[announcementCode].color;
+
+  let _font = font ? font : "bold";
 
   let msg = convert(announcementCode, "en", inputs);
   room_playerList.filter(pre => teams.includes(pre.team)).forEach(player => {
-    room_room.sendAnnouncement(msg, player.id, _color, "bold", 2);
+    room_room.sendAnnouncement(msg, player.id, _color, _font, 2);
   });
 };
 
-const notice = (announcementCode, inputs = [], player, color = null) => {
+const notice = (announcementCode, inputs = [], player, color = null, font = null) => {
   let _color = color ? color : announcements[announcementCode].color;
 
+  let _font = font ? font : "bold";
+
   let msg = convert(announcementCode, "en", inputs);
-  room_room.sendAnnouncement(msg, player.id, _color, "bold", 2);
+  room_room.sendAnnouncement(msg, player.id, _color, _font, 2);
 };
 
 
@@ -198,6 +213,7 @@ const connStringToIp = function (conn) {
 
 
 
+const INV_MASS_PLAYER = 999999999999;
 const INITIAL_PLAYER_VALUES = {
   afk: false,
   strangenesses: {
@@ -250,6 +266,10 @@ const INITIAL_PLAYER_VALUES = {
     player.team = changedPlayer.team;
 
     if ([1, 2].includes(player.team)) {
+      room_room.setPlayerDiscProperties(player.id, {
+        invMass: INV_MASS_PLAYER
+      });
+
       if (player.team === 1) {
         room_room.setPlayerDiscProperties(player.id, {
           x: -400
@@ -500,14 +520,16 @@ const strangenesses = [{
   invoke(playerKicked) {
     let {
       x,
-      y,
-      radius: r
+      y
     } = room_room.getDiscProperties(0);
     let {
       x: px,
-      y: py,
-      radius: pr
+      y: py
     } = room_room.getPlayerDiscProperties(playerKicked.id);
+    room_room.setDiscProperties(0, {
+      xspeed: 0,
+      yspeed: 0
+    });
     let dx = (px - x) * -1;
     let dy = (py - y) * -1;
     room_room.setPlayerDiscProperties(playerKicked.id, {
@@ -653,10 +675,9 @@ const strangenesses = [{
   id: "SPEED_BOOST",
 
   invoke(playerKicked) {
-    room_room.setPlayerAvatar(_player.id, "🚀");
-
     const _player = players.findPlayerById(playerKicked.id);
 
+    room_room.setPlayerAvatar(_player.id, "🚀");
     const speedBoostId = _player.strangenesses.speedBoostId += 1;
     _player.strangenesses.speedBoost = true;
     notice("SPEED_BOOST", [], _player.id);
@@ -696,7 +717,7 @@ const strangenesses = [{
     }
 
     strangenessUsage.push({
-      tick: roomStates.gameTick + 15000,
+      tick: roomStates.gameTick + 180,
       positionId: roomStates.positionId,
 
       invoke() {
@@ -729,7 +750,7 @@ const strangenesses = [{
       yspeed: 0
     });
     strangenessUsage.push({
-      tick: roomStates.gameTick + 120,
+      tick: roomStates.gameTick + 180,
       positionId: roomStates.positionId,
 
       invoke() {
@@ -760,13 +781,9 @@ const strangenesses = [{
         let player = _players[i];
 
         if (isActive) {
-          var _player$strangenesses, _player$strangenesses2, _player$position, _player$position2;
-
           room_room.setPlayerAvatar(player.id, "🥶");
           player.strangenesses.frozenCoordinates = player.position ? { ...player.position
           } : null;
-          room_room.sendAnnouncement(`id {${player.id}}: ${(_player$strangenesses = player.strangenesses.frozenCoordinates) === null || _player$strangenesses === void 0 ? void 0 : _player$strangenesses.x}, ${(_player$strangenesses2 = player.strangenesses.frozenCoordinates) === null || _player$strangenesses2 === void 0 ? void 0 : _player$strangenesses2.y}`);
-          room_room.sendAnnouncement(`id {${player.id}}: ${(_player$position = player.position) === null || _player$position === void 0 ? void 0 : _player$position.x}, ${(_player$position2 = player.position) === null || _player$position2 === void 0 ? void 0 : _player$position2.y}`);
         } else {
           room_room.setPlayerAvatar(player.id, DEFAULT_AVATAR);
           player.strangenesses.frozenCoordinates = null;
@@ -864,11 +881,11 @@ const strangenesses = [{
 
       invoke() {
         if (timeTravelId === _player.strangenesses.timeTravelId) {
-          var _player$strangenesses3, _player$strangenesses4;
+          var _player$strangenesses, _player$strangenesses2;
 
           _player.strangenesses.timeTravel = false;
-          let x = (_player$strangenesses3 = _player.strangenesses.timeTravelCoordinates) === null || _player$strangenesses3 === void 0 ? void 0 : _player$strangenesses3.x;
-          let y = (_player$strangenesses4 = _player.strangenesses.timeTravelCoordinates) === null || _player$strangenesses4 === void 0 ? void 0 : _player$strangenesses4.y;
+          let x = (_player$strangenesses = _player.strangenesses.timeTravelCoordinates) === null || _player$strangenesses === void 0 ? void 0 : _player$strangenesses.x;
+          let y = (_player$strangenesses2 = _player.strangenesses.timeTravelCoordinates) === null || _player$strangenesses2 === void 0 ? void 0 : _player$strangenesses2.y;
           room_room.setPlayerDiscProperties(_player.id, {
             x,
             y
@@ -909,6 +926,9 @@ const strangenesses = [{
             y: dy
           });
           roomStates.strangenesses.timeTravelBall = false;
+          room_room.setDiscProperties(0, {
+            color: 0xFFFFFF
+          });
         }
       }
 
@@ -963,7 +983,7 @@ let sexxx = 0;
           } else if (playablesSpec.length === 1) {
             room_room.setPlayerTeam(playablesSpec[0].id, 2);
           } else if (playablesSpec.length > 1) {
-            if (playablesSpec.length === SYSTEM.PEOPLE_COUNT_BY_TEAM - blueTeam.length) {
+            if (playablesSpec.length === SYSTEM.PEOPLE_COUNT_BY_TEAM + blueTeam.length) {
               room_room.pauseGame(false);
               room_room.setPlayerTeam(playablesSpec[0].id, 2);
             } else {
@@ -977,7 +997,7 @@ let sexxx = 0;
           } else if (playablesSpec.length === 1) {
             room_room.setPlayerTeam(playablesSpec[0].id, 1);
           } else if (playablesSpec.length > 1) {
-            if (playablesSpec.length === SYSTEM.PEOPLE_COUNT_BY_TEAM - redTeam.length) {
+            if (playablesSpec.length === SYSTEM.PEOPLE_COUNT_BY_TEAM + redTeam.length) {
               room_room.pauseGame(false);
               room_room.setPlayerTeam(playablesSpec[0].id, 1);
             } else {
@@ -1046,15 +1066,15 @@ let sexxx = 0;
     if (team === 1) {
       roomStates.teamSelecting = 1;
       this.autoSelect(1, playablesSpec);
-      announceTeams("SELECT_PLAYER", [1], ["Red Team", this.printPlayableSpecs(playablesSpec)]);
+      announceTeams("SELECT_PLAYER", [1], ["Red Team", this.printPlayableSpecs(playablesSpec)], COLORS.RED, "small-bold");
     } else if (team === 2) {
       roomStates.teamSelecting = 2;
       this.autoSelect(2, playablesSpec);
-      announceTeams("SELECT_PLAYER", [2], ["Blue Team", this.printPlayableSpecs(playablesSpec)]);
+      announceTeams("SELECT_PLAYER", [2], ["Blue Team", this.printPlayableSpecs(playablesSpec)], COLORS.BLUE, "small-bold");
     } else if (team === 3) {
       roomStates.teamSelecting = 3;
       this.autoSelect(3, playablesSpec);
-      announceTeams("SELECT_PLAYER", [1, 2], ["All Teams", this.printPlayableSpecs(playablesSpec)]);
+      announceTeams("SELECT_PLAYER", [1, 2], ["All Teams", this.printPlayableSpecs(playablesSpec)], null, "small-bold");
     }
   },
   printPlayableSpecs: function (players = []) {
@@ -1170,20 +1190,20 @@ let sexxx = 0;
     }, 1000);
   },
   onPlayerBallKick: function (player) {
-    let _strangenesses = strangenesses; // strangenesses[Math.floor(Math.random() * 7)].invoke(player);
+    let _strangenesses = strangenesses;
+    roomStates.strangenesses.frozenBall && (_strangenesses = []);
+    console.log();
+    let length = _strangenesses.length;
 
-    if (!roomStates.strangenesses.frozenBall) {
-      var _strangenesses$find;
+    let strangeness = _strangenesses[Math.floor(Math.random() * length)];
 
-      // sexxx % 2 === 1 && _strangenesses.find(pre => pre.id === "SMALL_BALL")?.invoke(player);
-      sexxx % 1 === 0 && ((_strangenesses$find = _strangenesses.find(pre => pre.id === "BOMB_BALL")) === null || _strangenesses$find === void 0 ? void 0 : _strangenesses$find.invoke(player));
-      sexxx += 1;
-    }
+    room_room.sendAnnouncement(`${strangeness === null || strangeness === void 0 ? void 0 : strangeness.id}`);
+    strangeness === null || strangeness === void 0 ? void 0 : strangeness.invoke(player);
   },
   makeAllPlayerWeak: function () {
     room_playerList.filter(players => players.team !== 0).forEach(player => {
       room_room.setPlayerDiscProperties(player.id, {
-        invMass: 999999999
+        invMass: INV_MASS_PLAYER
       });
     });
   },
@@ -1192,6 +1212,29 @@ let sexxx = 0;
       console.log(room_room.getPlayerDiscProperties(el.id));
     });
   },
+
+  checkBallInTheField() {
+    let {
+      x,
+      y
+    } = room_room.getDiscProperties(0);
+
+    if (x > BOUNDS.X1 && x < BOUNDS.X2 && y > BOUNDS.Y1 && y < BOUNDS.Y2) {
+      roomStates.ballOutFieldTick = 0;
+    } else {
+      roomStates.ballOutFieldTick += 1;
+    }
+
+    if (roomStates.ballOutFieldTick >= 300) {
+      room_room.setDiscProperties(0, {
+        x: 0,
+        y: 0
+      });
+      room_room.ballOutFieldTick = 0;
+      announceLouder("BALL_OUT_OF_FIELD", []);
+    }
+  },
+
   useSpeedBoost: function (player) {
     const _player = players.findPlayerById(player.id);
 
@@ -1255,6 +1298,11 @@ let sexxx = 0;
         });
       }
     });
+  },
+  checkTimeTravelBall: function () {
+    roomStates.strangenesses.timeTravelBall && room_room.setDiscProperties(0, {
+      color: -1
+    });
   }
 });
 ;// CONCATENATED MODULE: ./src/maps.js
@@ -1298,9 +1346,9 @@ const processChat = (player, message) => {
 let room_room; // Rooms properties when initializing.
 
 const ROOM_INIT_PROPERTIES = {
-  token: "thr1.AAAAAGD9wneWs-jAtAdA_g.hdUIO_3NkzU",
+  token: "thr1.AAAAAGD-wte33xUVAb8uKQ.Pa0YgdrI6ns",
   // Token is REQUIRED to have this app to skip the recapctha!
-  roomName: `🤡 JOKERBALL 7/24 :)`,
+  roomName: `🤡 ~JOKERBALL~ [v4] [7/24] :)`,
   maxPlayers: 15,
   noPlayer: true,
   public: false,
@@ -1309,6 +1357,12 @@ const ROOM_INIT_PROPERTIES = {
     lat: parseFloat("45.31"),
     lon: parseFloat("12.31")
   }
+};
+const BOUNDS = {
+  X1: -700,
+  X2: 700,
+  Y1: -320,
+  Y2: 320
 };
 const SYSTEM = {
   MANAGE_AFKS: false,
@@ -1320,7 +1374,7 @@ const SYSTEM = {
 
 const makeSystemDefault = () => {
   SYSTEM.MANAGE_AFKS = true;
-  SYSTEM.ONE_TAB = false;
+  SYSTEM.ONE_TAB = true;
   SYSTEM.PEOPLE_COUNT_BY_TEAM = 4;
   SYSTEM.GAME_TIME_LIMIT = 2;
   SYSTEM.GAME_SCORE_LIMIT = 3;
@@ -1348,6 +1402,7 @@ const strangenessesInit = {
 }; // Room states.
 
 const roomStates = {
+  ballOutFieldTick: 0,
   gameId: 0,
   gameStarted: false,
   gameLocked: false,
@@ -1416,9 +1471,11 @@ window.onHBLoaded = () => {
   room_room.onGameTick = () => {
     players.assignPosition();
     strangenessUsage.filter(pre => pre.tick === roomStates.gameTick && pre.positionId === roomStates.positionId).forEach(pre => pre.invoke());
+    game.checkBallInTheField();
     game.checkIfPlayersFrozen();
     game.checkIfPlayersSelfFrozen();
     game.checkIfPlayersAreSuperman();
+    game.checkTimeTravelBall();
     roomStates.gameTick += 1;
   };
 

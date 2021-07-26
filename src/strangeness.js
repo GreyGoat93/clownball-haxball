@@ -119,8 +119,9 @@ export const strangenesses = [
     {
         id: "TROLL_THE_WAY",
         invoke(playerKicked){
-            let {x, y, radius: r} = room.getDiscProperties(0);
-            let {x: px, y: py, radius: pr} = room.getPlayerDiscProperties(playerKicked.id);
+            let {x, y} = room.getDiscProperties(0);
+            let {x: px, y: py} = room.getPlayerDiscProperties(playerKicked.id);
+            room.setDiscProperties(0, {xspeed: 0, yspeed: 0});
             let dx = (px - x) * -1;
             let dy = (py - y) * -1;
             room.setPlayerDiscProperties(playerKicked.id, {x: x + dx, y: y + dy});
@@ -221,8 +222,8 @@ export const strangenesses = [
     {
         id: "SPEED_BOOST",
         invoke(playerKicked){
-            room.setPlayerAvatar(_player.id, "🚀")
             const _player = players.findPlayerById(playerKicked.id);
+            room.setPlayerAvatar(_player.id, "🚀")
             const speedBoostId = _player.strangenesses.speedBoostId += 1;
             _player.strangenesses.speedBoost = true;
             notice("SPEED_BOOST", [], _player.id);
@@ -255,7 +256,7 @@ export const strangenesses = [
                 roomStates.strangenesses.makeEnemiesSmallerBlue = true;
             }
             strangenessUsage.push({
-                tick: roomStates.gameTick + 15000,
+                tick: roomStates.gameTick + 180,
                 positionId: roomStates.positionId,
                 invoke(){
                     if(roomStates.strangenesses.makeEnemiesSmallerIdRed === makeEnemiesSmallerIdRed){
@@ -276,7 +277,7 @@ export const strangenesses = [
             const frozenBallId = roomStates.strangenesses.frozenBallId += 1;
             room.setDiscProperties(0, {invMass: 0, color: 0x3FD0D4, xspeed: 0, yspeed: 0});
             strangenessUsage.push({
-                tick: roomStates.gameTick + 120,
+                tick: roomStates.gameTick + 180,
                 positionId: roomStates.positionId,
                 invoke(){
                     if(frozenBallId === roomStates.strangenesses.frozenBallId){
@@ -301,8 +302,6 @@ export const strangenesses = [
                     if(isActive){
                         room.setPlayerAvatar(player.id, "🥶")
                         player.strangenesses.frozenCoordinates = player.position ? {...player.position} : null;
-                        room.sendAnnouncement(`id {${player.id}}: ${player.strangenesses.frozenCoordinates?.x}, ${player.strangenesses.frozenCoordinates?.y}`)
-                        room.sendAnnouncement(`id {${player.id}}: ${player.position?.x}, ${player.position?.y}`)
                     } else {
                         room.setPlayerAvatar(player.id, DEFAULT_AVATAR)
                         player.strangenesses.frozenCoordinates = null;
@@ -411,6 +410,7 @@ export const strangenesses = [
                         let dy = roomStates.strangenesses.timeTravelBallCoordinates?.y;
                         room.setDiscProperties(0, {x: dx, y: dy})
                         roomStates.strangenesses.timeTravelBall = false;
+                        room.setDiscProperties(0, {color: 0xFFFFFF});
                     }
                 }
             })
