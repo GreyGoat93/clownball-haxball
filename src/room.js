@@ -145,7 +145,7 @@ window.onHBLoaded = () => {
   }
 
   room.onTeamGoal = (teamID) => {
-
+    game.onTeamGoal(teamID);
   }
 
   room.onPositionsReset = () => {

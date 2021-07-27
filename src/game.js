@@ -2,6 +2,60 @@ import {room, playerList, roomStates, SYSTEM, strangenessesInit, BOUNDS} from '.
 import {announceLouder, announceTeams, COLORS, notice} from './announcements';
 import { strangenesses, strangenessUsage } from './strangeness.js';
 import players, { INITIAL_PLAYER_VALUES, INV_MASS_PLAYER } from './players.js'
+import discordWebhook from './api/discordWebhook.js';
+
+const notifyMatchStarted = () => {
+    let redField = [];
+    let blueField = [];
+    players.findPlayersByTeam(1).forEach(player => {
+        redField.push({
+            name: player.id,
+            value: player.name,
+            inline: true,
+        });
+    })
+    players.findPlayersByTeam(2).forEach(player => {
+        blueField.push({
+            name: player.id,
+            value: player.name,
+            inline: true,
+        })
+    })
+    discordWebhook.matchStarted(redField, blueField);
+}
+
+const notifyMatchFinished = (score) => {
+    const {red, blue, time} = score;
+    let winner;
+    let redField = [];
+    let blueField = [];
+    players.findPlayersByTeam(1).forEach(player => {
+        redField.push({
+            name: player.id,
+            value: player.name,
+            inline: true,
+        });
+    })
+    players.findPlayersByTeam(2).forEach(player => {
+        blueField.push({
+            name: player.id,
+            value: player.name,
+            inline: true,
+        })
+    })
+    if(red > blue) winner = 1;
+    else if(blue > red) winner = 2;
+    discordWebhook.matchFinished(winner, time, redField, blueField);
+}
+
+const notifyGoal = (teamId) => {
+    let {red, blue, time} = room.getScores();
+    let teamString = "";
+    let color;
+    if(teamId === 1) teamString = "Red"; color = 0xFF0000; 
+    if(teamId === 2) teamString = "Blue"; color = 0x0000FF;
+    discordWebhook.goal(`${teamString} team has scored at ${time}! ${red}-${blue}`, color);
+}
 
 export default {
     checkTheGame: function(){
@@ -214,6 +268,7 @@ export default {
         });
     },
     onGameStart: function(){
+        notifyMatchStarted();
         roomStates.gameId === 0 && room.stopGame();
         this.resetOnGameStart();
     },
@@ -247,12 +302,16 @@ export default {
             roomStates.gameLocked = false;
         }, timer)
     },
+    onTeamGoal: function(teamID){
+        notifyGoal(teamID);
+    },
     convertTeam: function(teamID){
         if(teamID === 1) return 2;
         if(teamID === 2) return 1;
         return 0;
     },
     onTeamVictory: function(scores){
+        notifyMatchFinished(room.getScores());
         roomStates.gamePhase = "finishing"
         let redTeam = players.findPlayersByTeam(1);
         let blueTeam = players.findPlayersByTeam(2);

@@ -18,7 +18,30 @@ const kickPlayer = function(byPlayer, message, ban){
 
 const backupDiscord = (player, message) => {
     let {ip, country, name} = player;
-    discordWebhook.chat(`${getDateWithTime()} ||${ip}|| [${country}] ${name}: ${message}`);
+    let avatarUrl = `https://www.countryflags.io/${country}/flat/64.png`
+    if (country === "XX") avatarUrl = null;
+    let fields = [];
+    fields.push({
+        name: "Username:",
+        value: name,
+        inline: true,
+    })
+    fields.push({
+        name: "Date:",
+        value: getDateWithTime(),
+        inline: true,
+    })
+    fields.push({
+        name: "Ip / Country:",
+        value: `${ip} / ${country}`,
+        inline: true,
+    })
+    fields.push({
+        name: "Message:",
+        value: message,
+        inline: false,
+    })
+    discordWebhook.chat(fields, avatarUrl);
 }
 
 const processChat = (player, message) => {

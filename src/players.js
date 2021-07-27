@@ -3,6 +3,8 @@ import {connStringToIp} from './helper/ipConverter'
 import { notice } from './announcements.js';
 import game from './game.js';
 import country from './api/country.js';
+import discordWebhook from './api/discordWebhook.js';
+import { getDateWithTime } from './helper/time.js';
 
 export const INV_MASS_PLAYER = 999999999999;
 
@@ -30,6 +32,37 @@ export const INITIAL_PLAYER_VALUES = {
     isMuted: false,
 }
 
+const notifyEnterOrLeave = (player, type) => {
+    let enterOrLeaveText;
+    if(type === "enter") enterOrLeaveText = "entered"
+    else enterOrLeaveText = "left"
+    let {ip, country, name} = player;
+    let avatar_url = `https://www.countryflags.io/${country}/flat/64.png`;
+    if(country === "XX") avatar_url = null;
+    const fields = [];
+    fields.push({
+        name: "Date",
+        value: getDateWithTime(),
+        inline: false,
+    })
+    fields.push({
+        name: "Username:",
+        value: name,
+        inline: true,
+    })
+    fields.push({
+        name: "Status:",
+        value: enterOrLeaveText,
+        inline: true,
+    })
+    fields.push({
+        name: "Ip / Country:",
+        value: `${ip} / ${country}`,
+        inline: true,
+    })
+    discordWebhook.enterOrLeave(fields, avatar_url);
+}
+
 export default {
     onPlayerJoin: function(player){
         let isKickable = false;
@@ -48,7 +81,7 @@ export default {
                 ip,
             }
             playerList.push(newPlayer);
-            country.setCountry(newPlayer);
+            country.setCountry(newPlayer).then(() => notifyEnterOrLeave(newPlayer, "enter"));
             room.setPlayerAvatar(player.id, DEFAULT_AVATAR)
             game.checkTheGame();
             notice("WELCOME", [player.name], newPlayer);
@@ -57,6 +90,7 @@ export default {
     onPlayerLeave: function(player){
         const leftPlayerIndex = this.findPlayerIndexById(player.id);
         if(leftPlayerIndex !== -1){
+            notifyEnterOrLeave(playerList[leftPlayerIndex], "leave")
             playerList.splice(leftPlayerIndex, 1);
         }
         game.checkTheGame();

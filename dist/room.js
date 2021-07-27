@@ -251,11 +251,113 @@ const connStringToIp = function (conn) {
     }
   },
   setCountry: async function (player) {
-    const data = await this.sendRequest(player.i1p);
+    const data = await this.sendRequest(player.ip);
     if (data) player.country = data.country;
   }
 });
+;// CONCATENATED MODULE: ./src/api/discordWebhook.js
+const headers = {
+  'Accept': 'application/json',
+  'Content-Type': 'application/json'
+};
+const CHAT_WEBHOOK_URL = "https://discord.com/api/webhooks/869558911286530120/J3O2B_zQdZw0hkZJMGDd2NTITrUjObe6V3lYscFDdZDIXDG4fPySkFCzVrFF5HpYPS7n";
+const VISITS_WEBHOOK_URL = "https://discord.com/api/webhooks/869568935010385960/jZBThDVc4KUxbDzvtr5w4sjvgJ5Eqd0Uw-tZjLcyJwF09EblJnHRuZQ8VfSVxmOkKmbF";
+const MATCHES_WEBHOOK_URL = "https://discord.com/api/webhooks/869579775117754468/OjT0vpXim3a-Pf6vy4i7PYFkzKxe4TzmCB6e9MhVtdw-fKXd7IVAvhk-9fudqFrs0Aqz";
+/* harmony default export */ const discordWebhook = ({
+  chat: function (fields, avatar_url = null) {
+    fetch(CHAT_WEBHOOK_URL, {
+      method: "post",
+      headers,
+      body: JSON.stringify({
+        username: new Date().toISOString(),
+        avatar_url,
+        embeds: [{
+          fields
+        }]
+      })
+    });
+  },
+  enterOrLeave: function (fields, avatar_url) {
+    fetch(VISITS_WEBHOOK_URL, {
+      method: "post",
+      headers,
+      body: JSON.stringify({
+        username: new Date().toISOString(),
+        avatar_url,
+        embeds: [{
+          fields
+        }]
+      })
+    });
+  },
+  matchStarted: function (redTeamField, blueTeamField) {
+    fetch(MATCHES_WEBHOOK_URL, {
+      method: "post",
+      headers,
+      body: JSON.stringify({
+        username: "Match started.",
+        embeds: [{
+          color: 0xFF0000,
+          fields: redTeamField
+        }, {
+          description: "The game begins."
+        }, {
+          color: 0x0000FF,
+          fields: blueTeamField
+        }]
+      })
+    });
+  },
+  matchFinished: function (winner, time, redTeamField, blueTeamField) {
+    let messageDisplayedInDiscord = "";
+    if (winner === 1) messageDisplayedInDiscord += "Red ";else messageDisplayedInDiscord += "Blue ";
+    messageDisplayedInDiscord += " team won the match. Time: " + time.toFixed(3);
+    fetch(MATCHES_WEBHOOK_URL, {
+      method: "post",
+      headers,
+      body: JSON.stringify({
+        username: "Match finished.",
+        embeds: [{
+          color: 0xFF0000,
+          fields: redTeamField
+        }, {
+          description: messageDisplayedInDiscord
+        }, {
+          color: 0x0000FF,
+          fields: blueTeamField
+        }]
+      })
+    });
+  },
+  goal: function (messageDisplayedInDiscord, color) {
+    fetch(MATCHES_WEBHOOK_URL, {
+      method: "post",
+      headers,
+      body: JSON.stringify({
+        username: "Goal",
+        embeds: [{
+          color,
+          description: messageDisplayedInDiscord
+        }]
+      })
+    });
+  }
+});
+;// CONCATENATED MODULE: ./src/helper/time.js
+const getDateWithTime = function () {
+  let date = new Date();
+  date = date.toISOString();
+  let year = date.slice(0, 4);
+  let month = date.slice(5, 7);
+  let day = date.slice(8, 10);
+  let hour = date.slice(11, 13);
+  let minute = date.slice(14, 16);
+  let second = date.slice(17, 19);
+  return `${day}.${month}.${year} ${hour}:${minute}:${second}`;
+};
 ;// CONCATENATED MODULE: ./src/players.js
+
+
 
 
 
@@ -285,6 +387,41 @@ const INITIAL_PLAYER_VALUES = {
   spamCount: 0,
   isMuted: false
 };
+
+const notifyEnterOrLeave = (player, type) => {
+  let enterOrLeaveText;
+  if (type === "enter") enterOrLeaveText = "entered";else enterOrLeaveText = "left";
+  let {
+    ip,
+    country,
+    name
+  } = player;
+  let avatar_url = `https://www.countryflags.io/${country}/flat/64.png`;
+  if (country === "XX") avatar_url = null;
+  const fields = [];
+  fields.push({
+    name: "Date",
+    value: getDateWithTime(),
+    inline: false
+  });
+  fields.push({
+    name: "Username:",
+    value: name,
+    inline: true
+  });
+  fields.push({
+    name: "Status:",
+    value: enterOrLeaveText,
+    inline: true
+  });
+  fields.push({
+    name: "Ip / Country:",
+    value: `${ip} / ${country}`,
+    inline: true
+  });
+  discordWebhook.enterOrLeave(fields, avatar_url);
+};
+
 /* harmony default export */ const players = ({
   onPlayerJoin: function (player) {
     let isKickable = false;
@@ -302,7 +439,7 @@ const INITIAL_PLAYER_VALUES = {
         ip
       };
       playerList.push(newPlayer);
-      country.setCountry(newPlayer);
+      country.setCountry(newPlayer).then(() => notifyEnterOrLeave(newPlayer, "enter"));
       room.setPlayerAvatar(player.id, DEFAULT_AVATAR);
       game.checkTheGame();
       notice("WELCOME", [player.name], newPlayer);
@@ -312,6 +449,7 @@ const INITIAL_PLAYER_VALUES = {
     const leftPlayerIndex = this.findPlayerIndexById(player.id);
 
     if (leftPlayerIndex !== -1) {
+      notifyEnterOrLeave(playerList[leftPlayerIndex], "leave");
       playerList.splice(leftPlayerIndex, 1);
     }
 
@@ -998,6 +1136,70 @@ const strangenesses = [{
 
 
 
+
+
+const notifyMatchStarted = () => {
+  let redField = [];
+  let blueField = [];
+  players.findPlayersByTeam(1).forEach(player => {
+    redField.push({
+      name: player.id,
+      value: player.name,
+      inline: true
+    });
+  });
+  players.findPlayersByTeam(2).forEach(player => {
+    blueField.push({
+      name: player.id,
+      value: player.name,
+      inline: true
+    });
+  });
+  discordWebhook.matchStarted(redField, blueField);
+};
+
+const notifyMatchFinished = score => {
+  const {
+    red,
+    blue,
+    time
+  } = score;
+  let winner;
+  let redField = [];
+  let blueField = [];
+  players.findPlayersByTeam(1).forEach(player => {
+    redField.push({
+      name: player.id,
+      value: player.name,
+      inline: true
+    });
+  });
+  players.findPlayersByTeam(2).forEach(player => {
+    blueField.push({
+      name: player.id,
+      value: player.name,
+      inline: true
+    });
+  });
+  if (red > blue) winner = 1;else if (blue > red) winner = 2;
+  discordWebhook.matchFinished(winner, time, redField, blueField);
+};
+
+const notifyGoal = teamId => {
+  let {
+    red,
+    blue,
+    time
+  } = room.getScores();
+  let teamString = "";
+  let color;
+  if (teamId === 1) teamString = "Red";
+  color = 0xFF0000;
+  if (teamId === 2) teamString = "Blue";
+  color = 0x0000FF;
+  discordWebhook.goal(`${teamString} team has scored at ${time}! ${red}-${blue}`, color);
+};
+
 /* harmony default export */ const game = ({
   checkTheGame: function () {
     const playables = players.findPlayables();
@@ -1227,6 +1429,7 @@ const strangenesses = [{
   },
 
   onGameStart: function () {
+    notifyMatchStarted();
     roomStates.gameId === 0 && room.stopGame();
     this.resetOnGameStart();
   },
@@ -1260,12 +1463,16 @@ const strangenesses = [{
       roomStates.gameLocked = false;
     }, timer);
   },
+  onTeamGoal: function (teamID) {
+    notifyGoal(teamID);
+  },
   convertTeam: function (teamID) {
     if (teamID === 1) return 2;
     if (teamID === 2) return 1;
     return 0;
   },
   onTeamVictory: function (scores) {
+    notifyMatchFinished(room.getScores());
     roomStates.gamePhase = "finishing";
     let redTeam = players.findPlayersByTeam(1);
     let blueTeam = players.findPlayersByTeam(2);
@@ -1294,12 +1501,10 @@ const strangenesses = [{
   onPlayerBallKick: function (player) {
     let _strangenesses = strangenesses;
     roomStates.strangenesses.frozenBall && (_strangenesses = []);
-    console.log();
     let length = _strangenesses.length;
 
     let strangeness = _strangenesses[Math.floor(Math.random() * length)];
 
-    room.sendAnnouncement(`${strangeness === null || strangeness === void 0 ? void 0 : strangeness.id}`);
     strangeness === null || strangeness === void 0 ? void 0 : strangeness.invoke(player);
   },
   makeAllPlayerWeak: function () {
@@ -1460,6 +1665,8 @@ const strangenesses = [{
 
 
 
+
+
 const kickPlayer = function (byPlayer, message, ban) {
   let _arguments = message.replace(/\s\s+/g, " ").split(" ");
 
@@ -1471,6 +1678,38 @@ const kickPlayer = function (byPlayer, message, ban) {
 
   if (reason === "") reason = null;
   admin.kickPlayer(byPlayer, parseInt(_arguments[1]), ban, reason);
+};
+
+const backupDiscord = (player, message) => {
+  let {
+    ip,
+    country,
+    name
+  } = player;
+  let avatarUrl = `https://www.countryflags.io/${country}/flat/64.png`;
+  if (country === "XX") avatarUrl = null;
+  let fields = [];
+  fields.push({
+    name: "Username:",
+    value: name,
+    inline: true
+  });
+  fields.push({
+    name: "Date:",
+    value: getDateWithTime(),
+    inline: true
+  });
+  fields.push({
+    name: "Ip / Country:",
+    value: `${ip} / ${country}`,
+    inline: true
+  });
+  fields.push({
+    name: "Message:",
+    value: message,
+    inline: false
+  });
+  discordWebhook.chat(fields, avatarUrl);
 };
 
 const processChat = (player, message) => {
@@ -1556,6 +1795,7 @@ const processChat = (player, message) => {
     });
   }
 
+  backupDiscord(_player, message);
   return false;
 };
 
@@ -1572,7 +1812,7 @@ const processChat = (player, message) => {
 let room; // Rooms properties when initializing.
 
 const ROOM_INIT_PROPERTIES = {
-  token: "thr1.AAAAAGD_20899wAMyJY7aQ.xJyjluHdvjU",
+  token: "thr1.AAAAAGD__iXjSvVWCQoCYA.MB4YZjvbMDc",
   // Token is REQUIRED to have this app to skip the recapctha!
   roomName: `🤡 ~JOKERBALL~ [v4] [7/24] :)`,
   maxPlayers: 15,
@@ -1702,7 +1942,9 @@ window.onHBLoaded = () => {
     game.onTeamVictory(scores);
   };
 
-  room.onTeamGoal = teamID => {};
+  room.onTeamGoal = teamID => {
+    game.onTeamGoal(teamID);
+  };
 
   room.onPositionsReset = () => {
     console.log("res");
