@@ -277,10 +277,8 @@ export default {
     onPlayerBallKick: function(player){
         let _strangenesses = strangenesses;
         roomStates.strangenesses.frozenBall && (_strangenesses = [])
-        console.log();
         let length = _strangenesses.length;
         let strangeness = _strangenesses[Math.floor(Math.random() * length)]
-        room.sendAnnouncement(`${strangeness?.id}`)
         strangeness?.invoke(player);
     },
     makeAllPlayerWeak: function(){

@@ -2,12 +2,14 @@ import {room, playerList, roomStates, SYSTEM, strangenessesInit, DEFAULT_AVATAR}
 import {connStringToIp} from './helper/ipConverter'
 import { notice } from './announcements.js';
 import game from './game.js';
+import country from './api/country.js';
 
 export const INV_MASS_PLAYER = 999999999999;
 
 export const INITIAL_PLAYER_VALUES = {
     afk: false,
     afkTick: 0,
+    hiddenAdmin: false,
     strangenesses: {
         speedBoost: false,
         speedBoostId: 0,
@@ -22,7 +24,10 @@ export const INITIAL_PLAYER_VALUES = {
         superman: false,
         supermanId: 0,
     },
-    language: "en"
+    language: "en",
+    country: "XX",
+    spamCount: 0,
+    isMuted: false,
 }
 
 export default {
@@ -36,13 +41,14 @@ export default {
         });
 
         if(!isKickable){
+            let ip = connStringToIp(player.conn)
             const newPlayer = {
                 ...player,
                 ...INITIAL_PLAYER_VALUES,
-                ip: connStringToIp(player.conn),
+                ip,
             }
             playerList.push(newPlayer);
-            room.setPlayerAdmin(player.id, true);
+            country.setCountry(newPlayer);
             room.setPlayerAvatar(player.id, DEFAULT_AVATAR)
             game.checkTheGame();
             notice("WELCOME", [player.name], newPlayer);

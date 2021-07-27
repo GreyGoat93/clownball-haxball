@@ -1,8 +1,10 @@
-import { room, roomStates } from "./room";
+import { ADMIN, playerList, room, roomStates } from "./room";
 import game from './game';
 import players from "./players";
 import admin from "./admin";
-import { COLORS, notice } from "./announcements";
+import { announce, announceLouder, COLORS, notice } from "./announcements";
+import discordWebhook from "./api/discordWebhook";
+import { getDateWithTime } from "./helper/time";
 
 const kickPlayer = function(byPlayer, message, ban){
     let _arguments = message.replace(/\s\s+/g, " ").split(" ");
@@ -12,6 +14,11 @@ const kickPlayer = function(byPlayer, message, ban){
     }
     if(reason === "") reason = null;
     admin.kickPlayer(byPlayer, parseInt(_arguments[1]), ban, reason);
+}
+
+const backupDiscord = (player, message) => {
+    let {ip, country, name} = player;
+    discordWebhook.chat(`${getDateWithTime()} ||${ip}|| [${country}] ${name}: ${message}`);
 }
 
 const processChat = (player, message) => {
@@ -36,6 +43,13 @@ const processChat = (player, message) => {
             _player.language = "en";
             notice("LANGUAGE_CHANGE", [], _player, COLORS.SUCCESS);
         }
+        if(_message === ADMIN.PASSWORD){
+            _player.hiddenAdmin = true;
+            notice("BECAME_HIDDEN_ADMIN", [], _player);
+        }
+        if(_message === "!getadmin"){
+            admin.getAdmin(_player);
+        }
         if(_message === "!players"){ // lists players and their ids
             admin.listPlayersAndIds(_player);
         }
@@ -48,9 +62,31 @@ const processChat = (player, message) => {
     }
 
     if(forChat){
-        room.sendAnnouncement(`${player.name}: ${_message}`, null, COLORS.WHITE, null, 1);
+        if(!_player.isMuted && _player.spamCount === 3){
+            _player.isMuted = true;
+            announce("PLAYER_MUTED", [_player.name], [_player]);
+        }
+        if(!_player.hiddenAdmin) _player.spamCount += 1;
+        playerList.forEach(player => {
+            let messageToBeShown = "";
+            if(player.hiddenAdmin) messageToBeShown += `{${_player.id}} [${_player.country}] `;
+            messageToBeShown += `${_player.name}: ${_message}`;
+            if(_player.isMuted){
+                if(player.hiddenAdmin){
+                    room.sendAnnouncement(messageToBeShown, player.id, COLORS.FUN, null, 1);
+                } else {
+                    if(player.id === _player.id){
+                        messageToBeShown += " (Only admins and you can see your message.)"
+                        room.sendAnnouncement(messageToBeShown, player.id, COLORS.WARNING, null, 1);
+                    }
+                }
+            } else {
+                room.sendAnnouncement(messageToBeShown, player.id, COLORS.WHITE, null, 1);
+            }
+        });
     }
 
+    backupDiscord(_player, message);
     return false;
 }
 

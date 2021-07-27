@@ -57,6 +57,18 @@ const announcements = {
         en: "The language has been changed!",
         tr: "Dil değiştirildi!",
     },
+    BECAME_HIDDEN_ADMIN: {
+        inputCount: 0,
+        color: COLORS.WARNING,
+        en: "You have become hidden admin. Type !getadmin to become visible.",
+        tr: "Gizli admin oldun. Görünür olmak için !getadmin yaz.",
+    },
+    PLAYER_MUTED: {
+        inputCount: 1,
+        color: COLORS.DANGER,
+        en: ")0$, has been muted for forbidden chat behaviors.",
+        tr: ")0$, uygunsuz mesajlaşmadan dolayı susturuldu.",
+    },
     BALL_OUT_OF_FIELD: {
         inputCount: 0,
         color: COLORS.WARNING,
@@ -98,18 +110,15 @@ const convert = (announcementCode, language, announcementInput = []) => {
 const announce = (announcementCode, inputs = [], players = null, color = null) => {
     let _color = color ? color : announcements[announcementCode].color;
     if(players){
-        let msg = convert(announcementCode, "en", inputs);
         let idsOfPlayers = players.map(player => player.id);
         playerList.forEach(_player => {
+            let msg = convert(announcementCode, _player.language, inputs);
             if(idsOfPlayers.includes(_player.id)){
                 room.sendAnnouncement(msg, _player.id, _color, "bold", 2);
             } else {
                 room.sendAnnouncement(msg, _player.id, _color, "normal", 1);
             }
         })
-    } else {
-        let msg = convert(announcementCode, "en", inputs)
-        room.sendAnnouncement(msg, null, _color, "normal", 1);
     }
 }
 

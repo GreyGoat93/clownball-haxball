@@ -54,8 +54,10 @@ const makeSystemDefault = () => {
   SYSTEM.CHOOSE_PLAYER_TIMEOUT = 8000;
 }
 
+// makeSystemDefault();
+
 const ADMIN = {
-  PASSWORD: "123456a",
+  PASSWORD: "!123456a",
 }
 
 //gamePhase: "idle" | "choosing" | "running" | "finishing"
@@ -186,6 +188,10 @@ window.onHBLoaded = () => {
   }
 }
 //** MAIN **//
+
+setInterval(() => {
+  playerList.forEach(player => player.spamCount = 0);
+}, 5000);
 
 // Initialize headless room.
 if (typeof window.HBInit === 'function') {

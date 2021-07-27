@@ -6,9 +6,13 @@ export default {
     onPlayerAdminChange: function(player, byPlayer){
         const _player = players.findPlayerById(player.id);
         _player.admin = player.admin;
+        if(_player.admin) _player.hiddenAdmin = true;
+    },
+    getAdmin: function(player){
+        if(player.hiddenAdmin) room.setPlayerAdmin(player.id, true);
     },
     listPlayersAndIds: function(player){
-        if(player.admin){
+        if(player.hiddenAdmin){
             let stringList = "|| "
             playerList.forEach(_player => {
                 stringList += `${_player.name} : ${_player.id} || `;
@@ -17,7 +21,7 @@ export default {
         }
     },
     kickPlayer: function(byPlayer, targetId, ban = false, reason = null){
-        if(byPlayer.admin){
+        if(byPlayer.hiddenAdmin){
             let _reason = reason ? reason : "Unspecified."
             if(!targetId || targetId === NaN){
                 notice("DEFAULT", ["Invalid Target ID"], byPlayer, COLORS.DANGER);

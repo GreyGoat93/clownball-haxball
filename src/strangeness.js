@@ -66,7 +66,7 @@ export const strangenesses = [
             let {x: px, y: py} = room.getPlayerDiscProperties(playerKicked.id);
             let dx = x - px;
             let dy = y - py;
-            let distance = 20 / Math.sqrt(dx*dx+dy*dy);
+            let distance = 15 / Math.sqrt(dx*dx+dy*dy);
             room.setDiscProperties(0, {xspeed: xspeed + (dx * distance), yspeed: yspeed + (dy * distance), color: 0xffce00});
             strangenessUsage.push({
                 tick: roomStates.gameTick + 5,

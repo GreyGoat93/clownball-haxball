@@ -45,8 +45,8 @@ __webpack_require__.d(__webpack_exports__, {
   "DEFAULT_AVATAR": () => (/* binding */ DEFAULT_AVATAR),
   "SYSTEM": () => (/* binding */ SYSTEM),
   "makeSystemDefault": () => (/* binding */ makeSystemDefault),
-  "playerList": () => (/* binding */ room_playerList),
-  "room": () => (/* binding */ room_room),
+  "playerList": () => (/* binding */ playerList),
+  "room": () => (/* binding */ room),
   "roomStates": () => (/* binding */ roomStates),
   "strangenessesInit": () => (/* binding */ strangenessesInit)
 });
@@ -108,6 +108,18 @@ const announcements = {
     en: "The language has been changed!",
     tr: "Dil değiştirildi!"
   },
+  BECAME_HIDDEN_ADMIN: {
+    inputCount: 0,
+    color: COLORS.WARNING,
+    en: "You have become hidden admin. Type !getadmin to become visible.",
+    tr: "Gizli admin oldun. Görünür olmak için !getadmin yaz."
+  },
+  PLAYER_MUTED: {
+    inputCount: 1,
+    color: COLORS.DANGER,
+    en: ")0$, has been muted for forbidden chat behaviors.",
+    tr: ")0$, uygunsuz mesajlaşmadan dolayı susturuldu."
+  },
   BALL_OUT_OF_FIELD: {
     inputCount: 0,
     color: COLORS.WARNING,
@@ -154,18 +166,16 @@ const announce = (announcementCode, inputs = [], players = null, color = null) =
   let _color = color ? color : announcements[announcementCode].color;
 
   if (players) {
-    let msg = convert(announcementCode, "en", inputs);
     let idsOfPlayers = players.map(player => player.id);
     playerList.forEach(_player => {
+      let msg = convert(announcementCode, _player.language, inputs);
+
       if (idsOfPlayers.includes(_player.id)) {
         room.sendAnnouncement(msg, _player.id, _color, "bold", 2);
       } else {
         room.sendAnnouncement(msg, _player.id, _color, "normal", 1);
       }
     });
-  } else {
-    let msg = convert(announcementCode, "en", inputs);
-    room.sendAnnouncement(msg, null, _color, "normal", 1);
   }
 };
 
@@ -174,9 +184,9 @@ const announceLouder = (announcementCode, inputs = [], color = null, font = null
 
   let _font = font ? font : "bold";
 
-  room_playerList.forEach(player => {
+  playerList.forEach(player => {
     let msg = convert(announcementCode, player.language, inputs);
-    room_room.sendAnnouncement(msg, player.id, _color, _font, 2);
+    room.sendAnnouncement(msg, player.id, _color, _font, 2);
   });
 };
 
@@ -185,9 +195,9 @@ const announceTeams = (announcementCode, teams = [], inputs = [], color = null, 
 
   let _font = font ? font : "bold";
 
-  room_playerList.filter(pre => teams.includes(pre.team)).forEach(player => {
+  playerList.filter(pre => teams.includes(pre.team)).forEach(player => {
     let msg = convert(announcementCode, player.language, inputs);
-    room_room.sendAnnouncement(msg, player.id, _color, _font, 2);
+    room.sendAnnouncement(msg, player.id, _color, _font, 2);
   });
 };
 
@@ -197,7 +207,7 @@ const notice = (announcementCode, inputs = [], player, color = null, font = null
   let _font = font ? font : "bold";
 
   let msg = convert(announcementCode, player.language, inputs);
-  room_room.sendAnnouncement(msg, player.id, _color, _font, 2);
+  room.sendAnnouncement(msg, player.id, _color, _font, 2);
 };
 
 
@@ -228,7 +238,25 @@ const connStringToIp = function (conn) {
 };
 
 
+;// CONCATENATED MODULE: ./src/api/country.js
+/* harmony default export */ const country = ({
+  sendRequest: async function (ip) {
+    try {
+      const res = await fetch('https://api.country.is/' + ip);
+      const data = await res.json();
+      return data;
+    } catch (err) {
+      console.log(err);
+      return null;
+    }
+  },
+  setCountry: async function (player) {
+    const data = await this.sendRequest(player.i1p);
+    if (data) player.country = data.country;
+  }
+});
 ;// CONCATENATED MODULE: ./src/players.js
+
 
 
 
@@ -237,6 +265,7 @@ const INV_MASS_PLAYER = 999999999999;
 const INITIAL_PLAYER_VALUES = {
   afk: false,
   afkTick: 0,
+  hiddenAdmin: false,
   strangenesses: {
     speedBoost: false,
     speedBoostId: 0,
@@ -251,26 +280,30 @@ const INITIAL_PLAYER_VALUES = {
     superman: false,
     supermanId: 0
   },
-  language: "en"
+  language: "en",
+  country: "XX",
+  spamCount: 0,
+  isMuted: false
 };
 /* harmony default export */ const players = ({
   onPlayerJoin: function (player) {
     let isKickable = false;
-    SYSTEM.ONE_TAB && room_playerList.forEach(_player => {
+    SYSTEM.ONE_TAB && playerList.forEach(_player => {
       if (_player.ip === connStringToIp(player.conn)) {
         isKickable = true;
-        room_room.kickPlayer(player.id, "You can enter here with only one tab!", false);
+        room.kickPlayer(player.id, "You can enter here with only one tab!", false);
       }
     });
 
     if (!isKickable) {
+      let ip = connStringToIp(player.conn);
       const newPlayer = { ...player,
         ...INITIAL_PLAYER_VALUES,
-        ip: connStringToIp(player.conn)
+        ip
       };
-      room_playerList.push(newPlayer);
-      room_room.setPlayerAdmin(player.id, true);
-      room_room.setPlayerAvatar(player.id, DEFAULT_AVATAR);
+      playerList.push(newPlayer);
+      country.setCountry(newPlayer);
+      room.setPlayerAvatar(player.id, DEFAULT_AVATAR);
       game.checkTheGame();
       notice("WELCOME", [player.name], newPlayer);
     }
@@ -279,7 +312,7 @@ const INITIAL_PLAYER_VALUES = {
     const leftPlayerIndex = this.findPlayerIndexById(player.id);
 
     if (leftPlayerIndex !== -1) {
-      room_playerList.splice(leftPlayerIndex, 1);
+      playerList.splice(leftPlayerIndex, 1);
     }
 
     game.checkTheGame();
@@ -289,28 +322,28 @@ const INITIAL_PLAYER_VALUES = {
     player.team = changedPlayer.team;
 
     if ([1, 2].includes(player.team)) {
-      room_room.setPlayerDiscProperties(player.id, {
+      room.setPlayerDiscProperties(player.id, {
         invMass: INV_MASS_PLAYER
       });
 
       if (player.team === 1) {
-        room_room.setPlayerDiscProperties(player.id, {
+        room.setPlayerDiscProperties(player.id, {
           x: -400
         });
       } else if (player.team === 2) {
-        room_room.setPlayerDiscProperties(player.id, {
+        room.setPlayerDiscProperties(player.id, {
           x: 400
         });
       }
 
       if (roomStates.strangenesses.makeEnemiesSmallerRed && player.team === 1) {
-        room_room.setPlayerDiscProperties(player.id, {
+        room.setPlayerDiscProperties(player.id, {
           radius: 5
         });
       }
 
       if (roomStates.strangenesses.makeEnemiesSmallerBlue && player.team === 2) {
-        room_room.setPlayerDiscProperties(player.id, {
+        room.setPlayerDiscProperties(player.id, {
           radius: 5
         });
       }
@@ -332,16 +365,16 @@ const INITIAL_PLAYER_VALUES = {
     }, 5000);
   },
   findPlayerById: function (id) {
-    return room_playerList.find(pre => pre.id === id);
+    return playerList.find(pre => pre.id === id);
   },
   findPlayerIndexById: function (id) {
-    return room_playerList.findIndex(pre => pre.id === id);
+    return playerList.findIndex(pre => pre.id === id);
   },
   findPlayersByTeam: function (teamID) {
-    return room_playerList.filter(pre => pre.team === teamID);
+    return playerList.filter(pre => pre.team === teamID);
   },
   findPlayables: function () {
-    return room_room.getPlayerList().map(player => {
+    return room.getPlayerList().map(player => {
       const _player = this.findPlayerById(player.id);
 
       if (_player) {
@@ -352,12 +385,12 @@ const INITIAL_PLAYER_VALUES = {
     }).filter(pre => pre);
   },
   getPlayersPlaying: function () {
-    return room_playerList.filter(pre => pre.team !== 0);
+    return playerList.filter(pre => pre.team !== 0);
   },
   onPositionsReset: function () {
     game.makeAllPlayerWeak();
-    room_playerList.forEach(player => {
-      room_room.setPlayerAvatar(player.id, DEFAULT_AVATAR);
+    playerList.forEach(player => {
+      room.setPlayerAvatar(player.id, DEFAULT_AVATAR);
       player.strangenesses = { ...INITIAL_PLAYER_VALUES.strangenesses
       };
     });
@@ -365,8 +398,8 @@ const INITIAL_PLAYER_VALUES = {
     };
   },
   assignPosition: function () {
-    room_playerList.forEach(player => {
-      const _player = room_room.getPlayer(player.id);
+    playerList.forEach(player => {
+      const _player = room.getPlayer(player.id);
 
       player.position = _player.position;
     });
@@ -383,8 +416,8 @@ const strangenesses = [{
   id: "TELEPORT_KICKER",
 
   invoke(playerKicked) {
-    let playerProps = room_room.getPlayerDiscProperties(playerKicked.id);
-    room_room.setPlayerDiscProperties(playerKicked.id, {
+    let playerProps = room.getPlayerDiscProperties(playerKicked.id);
+    room.setPlayerDiscProperties(playerKicked.id, {
       x: playerProps.x - generateRandomNumber(-200, 200),
       y: playerProps.y - generateRandomNumber(-200, 200)
     });
@@ -394,11 +427,11 @@ const strangenesses = [{
   id: "PULL_BACK_KICKER",
 
   invoke(playerKicked) {
-    let playerProps = room_room.getPlayerDiscProperties(playerKicked.id);
-    let ballProps = room_room.getDiscProperties(0);
+    let playerProps = room.getPlayerDiscProperties(playerKicked.id);
+    let ballProps = room.getDiscProperties(0);
     let dx = playerProps.x - ballProps.x;
     let dy = playerProps.y - ballProps.y;
-    room_room.setPlayerDiscProperties(playerKicked.id, {
+    room.setPlayerDiscProperties(playerKicked.id, {
       xspeed: playerProps.xspeed + dx / 1.4,
       yspeed: playerProps.yspeed + dy / 1.4
     });
@@ -411,14 +444,14 @@ const strangenesses = [{
     let {
       x,
       y
-    } = room_room.getDiscProperties(0);
+    } = room.getDiscProperties(0);
     const SYSTEM_OF_EQUATION_X = -7 / 40000;
     const SYSTEM_OF_EQUATION_Y = 15;
-    room_playerList.filter(pre => pre.team !== 0).forEach(player => {
+    playerList.filter(pre => pre.team !== 0).forEach(player => {
       let {
         x: px,
         y: py
-      } = room_room.getPlayerDiscProperties(player.id);
+      } = room.getPlayerDiscProperties(player.id);
       let dx = px - x;
       let dy = py - y;
       let sx;
@@ -430,7 +463,7 @@ const strangenesses = [{
       let yspeed = (dy * distance * SYSTEM_OF_EQUATION_X + SYSTEM_OF_EQUATION_Y) * sy;
 
       if (distance < 200) {
-        room_room.setPlayerDiscProperties(player.id, {
+        room.setPlayerDiscProperties(player.id, {
           xspeed,
           yspeed
         });
@@ -447,15 +480,15 @@ const strangenesses = [{
       y,
       xspeed,
       yspeed
-    } = room_room.getDiscProperties(0);
+    } = room.getDiscProperties(0);
     let {
       x: px,
       y: py
-    } = room_room.getPlayerDiscProperties(playerKicked.id);
+    } = room.getPlayerDiscProperties(playerKicked.id);
     let dx = x - px;
     let dy = y - py;
-    let distance = 20 / Math.sqrt(dx * dx + dy * dy);
-    room_room.setDiscProperties(0, {
+    let distance = 15 / Math.sqrt(dx * dx + dy * dy);
+    room.setDiscProperties(0, {
       xspeed: xspeed + dx * distance,
       yspeed: yspeed + dy * distance,
       color: 0xffce00
@@ -465,7 +498,7 @@ const strangenesses = [{
       positionId: roomStates.positionId,
 
       invoke() {
-        room_room.setDiscProperties(0, {
+        room.setDiscProperties(0, {
           color: 0xff5a00
         });
       }
@@ -476,7 +509,7 @@ const strangenesses = [{
       positionId: roomStates.positionId,
 
       invoke() {
-        room_room.setDiscProperties(0, {
+        room.setDiscProperties(0, {
           color: 0xff0000
         });
       }
@@ -487,7 +520,7 @@ const strangenesses = [{
       positionId: roomStates.positionId,
 
       invoke() {
-        room_room.setDiscProperties(0, {
+        room.setDiscProperties(0, {
           color: 0xff5a00
         });
       }
@@ -498,7 +531,7 @@ const strangenesses = [{
       positionId: roomStates.positionId,
 
       invoke() {
-        room_room.setDiscProperties(0, {
+        room.setDiscProperties(0, {
           color: 0xffce00
         });
       }
@@ -509,7 +542,7 @@ const strangenesses = [{
       positionId: roomStates.positionId,
 
       invoke() {
-        room_room.setDiscProperties(0, {
+        room.setDiscProperties(0, {
           color: 0xffffff
         });
       }
@@ -524,15 +557,15 @@ const strangenesses = [{
     let {
       x,
       y
-    } = room_room.getDiscProperties(0);
+    } = room.getDiscProperties(0);
     let {
       x: px,
       y: py
-    } = room_room.getPlayerDiscProperties(playerKicked.id);
+    } = room.getPlayerDiscProperties(playerKicked.id);
     let dx = px - x;
     let dy = py - y;
     let distance = 4 / Math.sqrt(dx * dx + dy * dy);
-    room_room.setDiscProperties(0, {
+    room.setDiscProperties(0, {
       xspeed: dx * distance,
       yspeed: dy * distance
     });
@@ -545,18 +578,18 @@ const strangenesses = [{
     let {
       x,
       y
-    } = room_room.getDiscProperties(0);
+    } = room.getDiscProperties(0);
     let {
       x: px,
       y: py
-    } = room_room.getPlayerDiscProperties(playerKicked.id);
-    room_room.setDiscProperties(0, {
+    } = room.getPlayerDiscProperties(playerKicked.id);
+    room.setDiscProperties(0, {
       xspeed: 0,
       yspeed: 0
     });
     let dx = (px - x) * -1;
     let dy = (py - y) * -1;
-    room_room.setPlayerDiscProperties(playerKicked.id, {
+    room.setPlayerDiscProperties(playerKicked.id, {
       x: x + dx,
       y: y + dy
     });
@@ -570,7 +603,7 @@ const strangenesses = [{
 
     _player.strangenesses.superman = true;
     let supermanId = _player.strangenesses.supermanId += 1;
-    room_room.setPlayerAvatar(_player.id, "🦸");
+    room.setPlayerAvatar(_player.id, "🦸");
     strangenessUsage.push({
       tick: roomStates.gameTick + 45,
       positionId: roomStates.positionId,
@@ -578,7 +611,7 @@ const strangenesses = [{
       invoke() {
         if (supermanId === _player.strangenesses.supermanId) {
           _player.strangenesses.superman = false;
-          room_room.setPlayerAvatar(_player.id, DEFAULT_AVATAR);
+          room.setPlayerAvatar(_player.id, DEFAULT_AVATAR);
         }
       }
 
@@ -596,21 +629,21 @@ const strangenesses = [{
         let {
           x: redX,
           y: redY
-        } = room_room.getPlayerDiscProperties(player.id);
+        } = room.getPlayerDiscProperties(player.id);
         let {
           x: blueX,
           y: blueY
-        } = room_room.getPlayerDiscProperties(blueTeam[index].id);
-        room_room.setPlayerDiscProperties(player.id, {
+        } = room.getPlayerDiscProperties(blueTeam[index].id);
+        room.setPlayerDiscProperties(player.id, {
           x: blueX,
           y: blueY
         });
-        room_room.setPlayerDiscProperties(blueTeam[index].id, {
+        room.setPlayerDiscProperties(blueTeam[index].id, {
           x: redX,
           y: redY
         });
-        room_room.setPlayerAvatar(player.id, "😵");
-        room_room.setPlayerAvatar(blueTeam[index].id, "😵");
+        room.setPlayerAvatar(player.id, "😵");
+        room.setPlayerAvatar(blueTeam[index].id, "😵");
       }
     });
     strangenessUsage.push({
@@ -618,7 +651,7 @@ const strangenesses = [{
       positionId: roomStates.positionId,
 
       invoke() {
-        room_playerList.forEach(player => room_room.setPlayerAvatar(player.id, DEFAULT_AVATAR));
+        playerList.forEach(player => room.setPlayerAvatar(player.id, DEFAULT_AVATAR));
       }
 
     });
@@ -628,7 +661,7 @@ const strangenesses = [{
   id: "BIG_BALL",
 
   invoke(playerKicked) {
-    room_room.setDiscProperties(0, {
+    room.setDiscProperties(0, {
       radius: 30
     });
     const ballRadiusId = roomStates.strangenesses.ballRadiusId += 1;
@@ -638,7 +671,7 @@ const strangenesses = [{
 
       invoke() {
         if (ballRadiusId === roomStates.strangenesses.ballRadiusId) {
-          room_room.setDiscProperties(0, {
+          room.setDiscProperties(0, {
             radius: 10
           });
         }
@@ -651,7 +684,7 @@ const strangenesses = [{
   id: "SMALL_BALL",
 
   invoke(playerKicked) {
-    room_room.setDiscProperties(0, {
+    room.setDiscProperties(0, {
       radius: 3
     });
     const ballRadiusId = roomStates.strangenesses.ballRadiusId += 1;
@@ -661,7 +694,7 @@ const strangenesses = [{
 
       invoke() {
         if (ballRadiusId === roomStates.strangenesses.ballRadiusId) {
-          room_room.setDiscProperties(0, {
+          room.setDiscProperties(0, {
             radius: 10
           });
         }
@@ -677,7 +710,7 @@ const strangenesses = [{
     const _player = players.findPlayerById(playerKicked.id);
 
     const bigPlayerSelfId = _player.strangenesses.bigPlayerSelfId += 1;
-    room_room.setPlayerDiscProperties(playerKicked.id, {
+    room.setPlayerDiscProperties(playerKicked.id, {
       radius: generateRandomNumber(20, 40)
     });
     strangenessUsage.push({
@@ -686,7 +719,7 @@ const strangenesses = [{
 
       invoke() {
         if (_player.strangenesses.bigPlayerSelfId === bigPlayerSelfId) {
-          room_room.setPlayerDiscProperties(playerKicked.id, {
+          room.setPlayerDiscProperties(playerKicked.id, {
             radius: 15
           });
         }
@@ -701,7 +734,7 @@ const strangenesses = [{
   invoke(playerKicked) {
     const _player = players.findPlayerById(playerKicked.id);
 
-    room_room.setPlayerAvatar(_player.id, "🚀");
+    room.setPlayerAvatar(_player.id, "🚀");
     const speedBoostId = _player.strangenesses.speedBoostId += 1;
     _player.strangenesses.speedBoost = true;
     notice("SPEED_BOOST", [], _player);
@@ -712,7 +745,7 @@ const strangenesses = [{
       invoke() {
         if (_player.strangenesses.speedBoostId === speedBoostId) {
           _player.strangenesses.speedBoost = false;
-          room_room.setPlayerAvatar(_player.id, DEFAULT_AVATAR);
+          room.setPlayerAvatar(_player.id, DEFAULT_AVATAR);
         }
       }
 
@@ -724,7 +757,7 @@ const strangenesses = [{
 
   invoke(playerKicked) {
     const enemyTeam = game.convertTeam(playerKicked.team);
-    players.findPlayersByTeam(enemyTeam).forEach(player => room_room.setPlayerDiscProperties(player.id, {
+    players.findPlayersByTeam(enemyTeam).forEach(player => room.setPlayerDiscProperties(player.id, {
       radius: 5
     }));
     let makeEnemiesSmallerIdRed = null;
@@ -753,7 +786,7 @@ const strangenesses = [{
           roomStates.strangenesses.makeEnemiesSmallerBlue = false;
         }
 
-        players.findPlayersByTeam(enemyTeam).forEach(player => room_room.setPlayerDiscProperties(player.id, {
+        players.findPlayersByTeam(enemyTeam).forEach(player => room.setPlayerDiscProperties(player.id, {
           radius: 15
         }));
       }
@@ -767,7 +800,7 @@ const strangenesses = [{
   invoke(playerKicked) {
     roomStates.strangenesses.frozenBall = true;
     const frozenBallId = roomStates.strangenesses.frozenBallId += 1;
-    room_room.setDiscProperties(0, {
+    room.setDiscProperties(0, {
       invMass: 0,
       color: 0x3FD0D4,
       xspeed: 0,
@@ -780,7 +813,7 @@ const strangenesses = [{
       invoke() {
         if (frozenBallId === roomStates.strangenesses.frozenBallId) {
           roomStates.strangenesses.frozenBall = false;
-          room_room.setDiscProperties(0, {
+          room.setDiscProperties(0, {
             invMass: 1,
             color: 0xFFFFFF
           });
@@ -805,11 +838,11 @@ const strangenesses = [{
         let player = _players[i];
 
         if (isActive) {
-          room_room.setPlayerAvatar(player.id, "🥶");
+          room.setPlayerAvatar(player.id, "🥶");
           player.strangenesses.frozenCoordinates = player.position ? { ...player.position
           } : null;
         } else {
-          room_room.setPlayerAvatar(player.id, DEFAULT_AVATAR);
+          room.setPlayerAvatar(player.id, DEFAULT_AVATAR);
           player.strangenesses.frozenCoordinates = null;
         }
       }
@@ -852,7 +885,7 @@ const strangenesses = [{
   invoke(playerKicked) {
     const _player = players.findPlayerById(playerKicked.id);
 
-    room_room.setPlayerAvatar(_player.id, "🥶");
+    room.setPlayerAvatar(_player.id, "🥶");
     _player.strangenesses.selfFrozen = true;
     _player.strangenesses.selfFrozenCoordinates = _player.position ? { ..._player.position
     } : null;
@@ -865,7 +898,7 @@ const strangenesses = [{
         if (selfFrozenId === _player.strangenesses.selfFrozenId) {
           _player.strangenesses.selfFrozen = false;
           _player.strangenesses.selfFrozenCoordinates = null;
-          room_room.setPlayerAvatar(_player.id, DEFAULT_AVATAR);
+          room.setPlayerAvatar(_player.id, DEFAULT_AVATAR);
         }
       }
 
@@ -881,7 +914,7 @@ const strangenesses = [{
     _player.strangenesses.timeTravel = true;
     _player.strangenesses.timeTravelCoordinates = _player.position ? { ..._player.position
     } : null;
-    room_room.setPlayerAvatar(_player.id, "🕐");
+    room.setPlayerAvatar(_player.id, "🕐");
     let timeTravelId = _player.strangenesses.timeTravelId += 1;
     let timeEmojis = ["🕑", "🕒", "🕓", "🕔", "🕕", "🕖", "🕗", "🕘", "🕙"];
     let timeTick = 0;
@@ -893,7 +926,7 @@ const strangenesses = [{
 
         invoke() {
           if (timeTravelId === _player.strangenesses.timeTravelId) {
-            room_room.setPlayerAvatar(_player.id, timeEmoji);
+            room.setPlayerAvatar(_player.id, timeEmoji);
           }
         }
 
@@ -910,11 +943,11 @@ const strangenesses = [{
           _player.strangenesses.timeTravel = false;
           let x = (_player$strangenesses = _player.strangenesses.timeTravelCoordinates) === null || _player$strangenesses === void 0 ? void 0 : _player$strangenesses.x;
           let y = (_player$strangenesses2 = _player.strangenesses.timeTravelCoordinates) === null || _player$strangenesses2 === void 0 ? void 0 : _player$strangenesses2.y;
-          room_room.setPlayerDiscProperties(_player.id, {
+          room.setPlayerDiscProperties(_player.id, {
             x,
             y
           });
-          room_room.setPlayerAvatar(_player.id, DEFAULT_AVATAR);
+          room.setPlayerAvatar(_player.id, DEFAULT_AVATAR);
         }
       }
 
@@ -928,7 +961,7 @@ const strangenesses = [{
     const {
       x,
       y
-    } = room_room.getDiscProperties(0);
+    } = room.getDiscProperties(0);
     roomStates.strangenesses.timeTravelBall = true;
     let timeTravelBallId = roomStates.strangenesses.timeTravelBallId += 1;
     roomStates.strangenesses.timeTravelBallCoordinates = {
@@ -945,12 +978,12 @@ const strangenesses = [{
 
           let dx = (_roomStates$strangene = roomStates.strangenesses.timeTravelBallCoordinates) === null || _roomStates$strangene === void 0 ? void 0 : _roomStates$strangene.x;
           let dy = (_roomStates$strangene2 = roomStates.strangenesses.timeTravelBallCoordinates) === null || _roomStates$strangene2 === void 0 ? void 0 : _roomStates$strangene2.y;
-          room_room.setDiscProperties(0, {
+          room.setDiscProperties(0, {
             x: dx,
             y: dy
           });
           roomStates.strangenesses.timeTravelBall = false;
-          room_room.setDiscProperties(0, {
+          room.setDiscProperties(0, {
             color: 0xFFFFFF
           });
         }
@@ -975,55 +1008,55 @@ const strangenesses = [{
     if (roomStates.gamePhase === "idle") {
       if (playables.length === 2) {
         if (roomStates.gamePhase === "idle") {
-          room_room.setPlayerTeam(playablesSpec[0].id, 1);
-          room_room.setPlayerTeam(playablesSpec[1].id, 2);
-          room_room.startGame();
+          room.setPlayerTeam(playablesSpec[0].id, 1);
+          room.setPlayerTeam(playablesSpec[1].id, 2);
+          room.startGame();
         }
       }
     } else if (roomStates.gamePhase === "running") {
       if (playables.length === 1) {
         if (playables[0].team !== 0) {
           announceLouder("WAIT_FOR_PLAYERS");
-          room_room.setPlayerTeam(playables[0].id, 0);
-          room_room.stopGame();
+          room.setPlayerTeam(playables[0].id, 0);
+          room.stopGame();
         }
       } else if (playables.length === 2) {
         if (playablesSpec[0]) {
           let emptyTeam = 0;
           if (redTeam.length !== 0) emptyTeam = 2;else if (blueTeam.length !== 0) emptyTeam = 1;
-          room_room.setPlayerTeam(playablesSpec[0].id, emptyTeam);
+          room.setPlayerTeam(playablesSpec[0].id, emptyTeam);
         }
       } else if (playables.length > 2) {
         if (redTeam.length === blueTeam.length && redTeam.length < SYSTEM.PEOPLE_COUNT_BY_TEAM && blueTeam.length < SYSTEM.PEOPLE_COUNT_BY_TEAM) {
           if (playablesSpec.length >= 2) {
-            room_room.pauseGame(true);
+            room.pauseGame(true);
             this.selectPlayerAbstraction(3, playablesSpec);
           }
         } else if (redTeam.length > blueTeam.length) {
           if (playablesSpec.length === 0) {
-            room_room.setPlayerTeam(redTeam[redTeam.length - 1].id, 0);
+            room.setPlayerTeam(redTeam[redTeam.length - 1].id, 0);
           } else if (playablesSpec.length === 1) {
-            room_room.setPlayerTeam(playablesSpec[0].id, 2);
+            room.setPlayerTeam(playablesSpec[0].id, 2);
           } else if (playablesSpec.length > 1) {
             if (playablesSpec.length === SYSTEM.PEOPLE_COUNT_BY_TEAM + blueTeam.length) {
-              room_room.pauseGame(false);
-              room_room.setPlayerTeam(playablesSpec[0].id, 2);
+              room.pauseGame(false);
+              room.setPlayerTeam(playablesSpec[0].id, 2);
             } else {
-              room_room.pauseGame(true);
+              room.pauseGame(true);
               this.selectPlayerAbstraction(2, playablesSpec);
             }
           }
         } else if (blueTeam.length > redTeam.length) {
           if (playablesSpec.length === 0) {
-            room_room.setPlayerTeam(blueTeam[blueTeam.length - 1].id, 0);
+            room.setPlayerTeam(blueTeam[blueTeam.length - 1].id, 0);
           } else if (playablesSpec.length === 1) {
-            room_room.setPlayerTeam(playablesSpec[0].id, 1);
+            room.setPlayerTeam(playablesSpec[0].id, 1);
           } else if (playablesSpec.length > 1) {
             if (playablesSpec.length === SYSTEM.PEOPLE_COUNT_BY_TEAM + redTeam.length) {
-              room_room.pauseGame(false);
-              room_room.setPlayerTeam(playablesSpec[0].id, 1);
+              room.pauseGame(false);
+              room.setPlayerTeam(playablesSpec[0].id, 1);
             } else {
-              room_room.pauseGame(true);
+              room.pauseGame(true);
               this.selectPlayerAbstraction(1, playablesSpec);
             }
           }
@@ -1034,7 +1067,7 @@ const strangenesses = [{
         roomStates.gamePhase = "idle";
       } else if (playables.length === 1) {
         roomStates.gamePhase = "idle";
-        room_room.setPlayerTeam(playables[0].id, 0);
+        room.setPlayerTeam(playables[0].id, 0);
       } else if (playables.length > 1) {
         if (redTeam.length === blueTeam.length && redTeam.length < SYSTEM.PEOPLE_COUNT_BY_TEAM) {
           if (playablesSpec.length >= 2 && redTeam.length <= SYSTEM.PEOPLE_COUNT_BY_TEAM - 1) {
@@ -1042,15 +1075,15 @@ const strangenesses = [{
           }
         } else if (redTeam.length < blueTeam.length) {
           if (redTeam.length === 0 && playablesSpec.length > 0) {
-            room_room.setPlayerTeam(playablesSpec[0].id, 1);
+            room.setPlayerTeam(playablesSpec[0].id, 1);
           } else if (redTeam.length >= 1) {
             if (playablesSpec.length === 0) {
-              room_room.setPlayerTeam(blueTeam[blueTeam.length - 1].id, 0);
+              room.setPlayerTeam(blueTeam[blueTeam.length - 1].id, 0);
             } else if (playablesSpec.length === 1) {
-              room_room.setPlayerTeam(playablesSpec[0].id, 1);
+              room.setPlayerTeam(playablesSpec[0].id, 1);
             } else if (playablesSpec.length > 1) {
               if (playablesSpec.length + redTeam.length === blueTeam.length) {
-                room_room.setPlayerTeam(playablesSpec[0].id, 1);
+                room.setPlayerTeam(playablesSpec[0].id, 1);
               } else {
                 this.selectPlayerAbstraction(1, playablesSpec);
               }
@@ -1058,15 +1091,15 @@ const strangenesses = [{
           }
         } else if (redTeam.length > blueTeam.length) {
           if (blueTeam.length === 0 && playablesSpec.length > 0) {
-            room_room.setPlayerTeam(playablesSpec[0].id, 2);
+            room.setPlayerTeam(playablesSpec[0].id, 2);
           } else if (blueTeam.length >= 1) {
             if (playablesSpec.length === 0) {
-              room_room.setPlayerTeam(redTeam[redTeam.length - 1].id, 0);
+              room.setPlayerTeam(redTeam[redTeam.length - 1].id, 0);
             } else if (playablesSpec.length === 1) {
-              room_room.setPlayerTeam(playablesSpec[0].id, 2);
+              room.setPlayerTeam(playablesSpec[0].id, 2);
             } else if (playablesSpec.length > 1) {
               if (playablesSpec.length + blueTeam.length === redTeam.length) {
-                room_room.setPlayerTeam(playablesSpec[0].id, 2);
+                room.setPlayerTeam(playablesSpec[0].id, 2);
               } else {
                 this.selectPlayerAbstraction(2, playablesSpec);
               }
@@ -1077,9 +1110,9 @@ const strangenesses = [{
 
       if (redTeam.length === blueTeam.length && redTeam.length > 0) {
         if (redTeam.length === SYSTEM.PEOPLE_COUNT_BY_TEAM) {
-          room_room.startGame();
+          room.startGame();
         } else if (redTeam.length < SYSTEM.PEOPLE_COUNT_BY_TEAM && playablesSpec.length < 2) {
-          room_room.startGame();
+          room.startGame();
         }
       }
     }
@@ -1110,12 +1143,12 @@ const strangenesses = [{
     clearTimeout(roomStates.autoSelectTimeout);
     roomStates.autoSelectTimeout = setTimeout(() => {
       if (team !== 3) {
-        room_room.setPlayerTeam(playablesSpec[0].id, team);
+        room.setPlayerTeam(playablesSpec[0].id, team);
       } else {
-        room_room.setPlayerTeam(playablesSpec[0].id, 1);
+        room.setPlayerTeam(playablesSpec[0].id, 1);
       }
 
-      room_room.pauseGame(false);
+      room.pauseGame(false);
     }, SYSTEM.CHOOSE_PLAYER_TIMEOUT);
   },
   selectPlayer: function (index, selectorsTeam) {
@@ -1125,24 +1158,24 @@ const strangenesses = [{
     if (roomStates.selectorsTeam !== 0) {
       if (roomStates.teamSelecting === 1) {
         if (selectorsTeam === 1) {
-          room_room.pauseGame(false);
+          room.pauseGame(false);
           clearTimeout(roomStates.autoSelectTimeout);
           roomStates.teamSelecting = 0;
-          room_room.setPlayerTeam(playablesSpec[index - 1].id, 1);
+          room.setPlayerTeam(playablesSpec[index - 1].id, 1);
         }
       } else if (roomStates.teamSelecting === 2) {
         if (selectorsTeam === 2) {
-          room_room.pauseGame(false);
+          room.pauseGame(false);
           clearTimeout(roomStates.autoSelectTimeout);
           roomStates.teamSelecting = 0;
-          room_room.setPlayerTeam(playablesSpec[index - 1].id, 2);
+          room.setPlayerTeam(playablesSpec[index - 1].id, 2);
         }
       } else if (roomStates.teamSelecting === 3) {
         if ([1, 2].includes(selectorsTeam)) {
-          room_room.pauseGame(false);
+          room.pauseGame(false);
           clearTimeout(roomStates.autoSelectTimeout);
           roomStates.teamSelecting = 0;
-          room_room.setPlayerTeam(playablesSpec[index - 1].id, selectorsTeam);
+          room.setPlayerTeam(playablesSpec[index - 1].id, selectorsTeam);
         }
       }
     }
@@ -1155,10 +1188,10 @@ const strangenesses = [{
         y,
         xspeed,
         yspeed
-      } = room_room.getDiscProperties(0);
+      } = room.getDiscProperties(0);
 
       if (x === 0 && y === 0) {
-        room_room.setDiscProperties(0, {
+        room.setDiscProperties(0, {
           xspeed: xspeed + 0.000001,
           yspeed: yspeed + 0.000001
         });
@@ -1174,7 +1207,7 @@ const strangenesses = [{
   },
 
   checkAfksInGame() {
-    room_playerList.filter(pre => pre.team !== 0).forEach(player => {
+    playerList.filter(pre => pre.team !== 0).forEach(player => {
       player.afkTick += 1;
 
       if (player.afkTick === SYSTEM.AFK_WARN_TICK) {
@@ -1182,19 +1215,19 @@ const strangenesses = [{
       }
 
       if (player.afkTick === SYSTEM.AFK_KICK_TICK) {
-        room_room.kickPlayer(player.id, "AFK!", false);
+        room.kickPlayer(player.id, "AFK!", false);
       }
     });
   },
 
   resetAfksInGame() {
-    room_playerList.forEach(player => {
+    playerList.forEach(player => {
       player.afkTick = 0;
     });
   },
 
   onGameStart: function () {
-    roomStates.gameId === 0 && room_room.stopGame();
+    roomStates.gameId === 0 && room.stopGame();
     this.resetOnGameStart();
   },
   resetOnGameStart: function () {
@@ -1214,7 +1247,7 @@ const strangenesses = [{
     roomStates.positionTick = 0;
     roomStates.positionId += 0;
     strangenessUsage = [];
-    room_playerList.forEach(player => player.strangenesses = { ...INITIAL_PLAYER_VALUES.strangenesses
+    playerList.forEach(player => player.strangenesses = { ...INITIAL_PLAYER_VALUES.strangenesses
     });
     this.resetAfksInGame();
     roomStates.strangenesses = { ...strangenessesInit
@@ -1239,23 +1272,23 @@ const strangenesses = [{
     let playablesSpec = players.findPlayables().filter(pre => pre.team === 0);
 
     if (scores.red > scores.blue) {
-      blueTeam.forEach(player => room_room.setPlayerTeam(player.id, 0));
+      blueTeam.forEach(player => room.setPlayerTeam(player.id, 0));
       playablesSpec.forEach((player, index) => {
         if (index <= redTeam.length) {
-          room_room.setPlayerTeam(player.id, 2);
+          room.setPlayerTeam(player.id, 2);
         }
       });
     } else if (scores.blue > scores.red) {
-      redTeam.forEach(player => room_room.setPlayerTeam(player.id, 0));
+      redTeam.forEach(player => room.setPlayerTeam(player.id, 0));
       playablesSpec.forEach((player, index) => {
         if (index <= blueTeam.length) {
-          room_room.setPlayerTeam(player.id, 1);
+          room.setPlayerTeam(player.id, 1);
         }
       });
     }
 
     setTimeout(() => {
-      room_room.stopGame();
+      room.stopGame();
     }, 1000);
   },
   onPlayerBallKick: function (player) {
@@ -1266,19 +1299,19 @@ const strangenesses = [{
 
     let strangeness = _strangenesses[Math.floor(Math.random() * length)];
 
-    room_room.sendAnnouncement(`${strangeness === null || strangeness === void 0 ? void 0 : strangeness.id}`);
+    room.sendAnnouncement(`${strangeness === null || strangeness === void 0 ? void 0 : strangeness.id}`);
     strangeness === null || strangeness === void 0 ? void 0 : strangeness.invoke(player);
   },
   makeAllPlayerWeak: function () {
-    room_playerList.filter(players => players.team !== 0).forEach(player => {
-      room_room.setPlayerDiscProperties(player.id, {
+    playerList.filter(players => players.team !== 0).forEach(player => {
+      room.setPlayerDiscProperties(player.id, {
         invMass: INV_MASS_PLAYER
       });
     });
   },
   getPlayersDiscProperties: function () {
-    room_room.getPlayerList().forEach(el => {
-      console.log(room_room.getPlayerDiscProperties(el.id));
+    room.getPlayerList().forEach(el => {
+      console.log(room.getPlayerDiscProperties(el.id));
     });
   },
 
@@ -1286,7 +1319,7 @@ const strangenesses = [{
     let {
       x,
       y
-    } = room_room.getDiscProperties(0);
+    } = room.getDiscProperties(0);
 
     if (x > BOUNDS.X1 && x < BOUNDS.X2 && y > BOUNDS.Y1 && y < BOUNDS.Y2) {
       roomStates.ballOutFieldTick = 0;
@@ -1295,13 +1328,13 @@ const strangenesses = [{
     }
 
     if (roomStates.ballOutFieldTick >= 300) {
-      room_room.setDiscProperties(0, {
+      room.setDiscProperties(0, {
         x: 0,
         y: 0,
         xspeed: 0,
         yspeed: 0
       });
-      room_room.ballOutFieldTick = 0;
+      room.ballOutFieldTick = 0;
       announceLouder("BALL_OUT_OF_FIELD", []);
     }
   },
@@ -1310,8 +1343,8 @@ const strangenesses = [{
     const _player = players.findPlayerById(player.id);
 
     if (_player.strangenesses.speedBoost) {
-      let playerProps = room_room.getPlayerDiscProperties(player.id);
-      room_room.setPlayerDiscProperties(player.id, {
+      let playerProps = room.getPlayerDiscProperties(player.id);
+      room.setPlayerDiscProperties(player.id, {
         xspeed: playerProps.xspeed * 1.15,
         yspeed: playerProps.yspeed * 1.15
       });
@@ -1322,7 +1355,7 @@ const strangenesses = [{
       players.findPlayersByTeam(teamId).forEach(player => {
         var _player$strangenesses, _player$strangenesses2;
 
-        room_room.setPlayerDiscProperties(player.id, {
+        room.setPlayerDiscProperties(player.id, {
           x: (_player$strangenesses = player.strangenesses.frozenCoordinates) === null || _player$strangenesses === void 0 ? void 0 : _player$strangenesses.x,
           y: (_player$strangenesses2 = player.strangenesses.frozenCoordinates) === null || _player$strangenesses2 === void 0 ? void 0 : _player$strangenesses2.y,
           xspeed: 0,
@@ -1340,13 +1373,13 @@ const strangenesses = [{
     }
   },
   checkIfPlayersSelfFrozen: function () {
-    room_playerList.forEach(player => {
+    playerList.forEach(player => {
       if (player.strangenesses.selfFrozen) {
         var _player$strangenesses3, _player$strangenesses4;
 
         let x = (_player$strangenesses3 = player.strangenesses.selfFrozenCoordinates) === null || _player$strangenesses3 === void 0 ? void 0 : _player$strangenesses3.x;
         let y = (_player$strangenesses4 = player.strangenesses.selfFrozenCoordinates) === null || _player$strangenesses4 === void 0 ? void 0 : _player$strangenesses4.y;
-        room_room.setPlayerDiscProperties(player.id, {
+        room.setPlayerDiscProperties(player.id, {
           x,
           y,
           xspeed: 0,
@@ -1356,13 +1389,13 @@ const strangenesses = [{
     });
   },
   checkIfPlayersAreSuperman: function () {
-    room_playerList.forEach(player => {
+    playerList.forEach(player => {
       if (player.strangenesses.superman) {
         let {
           xspeed,
           yspeed
-        } = room_room.getDiscProperties(0);
-        room_room.setPlayerDiscProperties(player.id, {
+        } = room.getDiscProperties(0);
+        room.setPlayerDiscProperties(player.id, {
           xspeed,
           yspeed
         });
@@ -1370,7 +1403,7 @@ const strangenesses = [{
     });
   },
   checkTimeTravelBall: function () {
-    roomStates.strangenesses.timeTravelBall && room_room.setDiscProperties(0, {
+    roomStates.strangenesses.timeTravelBall && room.setDiscProperties(0, {
       color: -1
     });
   }
@@ -1390,18 +1423,22 @@ const strangenesses = [{
     const _player = players.findPlayerById(player.id);
 
     _player.admin = player.admin;
+    if (_player.admin) _player.hiddenAdmin = true;
+  },
+  getAdmin: function (player) {
+    if (player.hiddenAdmin) room.setPlayerAdmin(player.id, true);
   },
   listPlayersAndIds: function (player) {
-    if (player.admin) {
+    if (player.hiddenAdmin) {
       let stringList = "|| ";
-      room_playerList.forEach(_player => {
+      playerList.forEach(_player => {
         stringList += `${_player.name} : ${_player.id} || `;
       });
-      room_room.sendAnnouncement(stringList, player.id, COLORS.WARNING, "small-bold", 0);
+      room.sendAnnouncement(stringList, player.id, COLORS.WARNING, "small-bold", 0);
     }
   },
   kickPlayer: function (byPlayer, targetId, ban = false, reason = null) {
-    if (byPlayer.admin) {
+    if (byPlayer.hiddenAdmin) {
       let _reason = reason ? reason : "Unspecified.";
 
       if (!targetId || targetId === NaN) {
@@ -1410,7 +1447,7 @@ const strangenesses = [{
         if (byPlayer.id === targetId) {
           notice("DEFAULT", ["You can't kick yourself!"], byPlayer, COLORS.DANGER);
         } else {
-          room_room.kickPlayer(targetId, _reason, ban);
+          room.kickPlayer(targetId, _reason, ban);
         }
       }
     }
@@ -1448,7 +1485,7 @@ const processChat = (player, message) => {
       x,
       y
     } = player.position;
-    room_room.sendAnnouncement(`x: ${x}, y: ${y}`);
+    room.sendAnnouncement(`x: ${x}, y: ${y}`);
   }
 
   if (["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"].includes(_message)) {
@@ -1469,6 +1506,15 @@ const processChat = (player, message) => {
       notice("LANGUAGE_CHANGE", [], _player, COLORS.SUCCESS);
     }
 
+    if (_message === ADMIN.PASSWORD) {
+      _player.hiddenAdmin = true;
+      notice("BECAME_HIDDEN_ADMIN", [], _player);
+    }
+
+    if (_message === "!getadmin") {
+      admin.getAdmin(_player);
+    }
+
     if (_message === "!players") {
       // lists players and their ids
       admin.listPlayersAndIds(_player);
@@ -1484,7 +1530,30 @@ const processChat = (player, message) => {
   }
 
   if (forChat) {
-    room_room.sendAnnouncement(`${player.name}: ${_message}`, null, COLORS.WHITE, null, 1);
+    if (!_player.isMuted && _player.spamCount === 3) {
+      _player.isMuted = true;
+      announce("PLAYER_MUTED", [_player.name], [_player]);
+    }
+
+    if (!_player.hiddenAdmin) _player.spamCount += 1;
+    playerList.forEach(player => {
+      let messageToBeShown = "";
+      if (player.hiddenAdmin) messageToBeShown += `{${_player.id}} [${_player.country}] `;
+      messageToBeShown += `${_player.name}: ${_message}`;
+
+      if (_player.isMuted) {
+        if (player.hiddenAdmin) {
+          room.sendAnnouncement(messageToBeShown, player.id, COLORS.FUN, null, 1);
+        } else {
+          if (player.id === _player.id) {
+            messageToBeShown += " (Only admins and you can see your message.)";
+            room.sendAnnouncement(messageToBeShown, player.id, COLORS.WARNING, null, 1);
+          }
+        }
+      } else {
+        room.sendAnnouncement(messageToBeShown, player.id, COLORS.WHITE, null, 1);
+      }
+    });
   }
 
   return false;
@@ -1500,10 +1569,10 @@ const processChat = (player, message) => {
 
  // Create room variable to use in exports.
 
-let room_room; // Rooms properties when initializing.
+let room; // Rooms properties when initializing.
 
 const ROOM_INIT_PROPERTIES = {
-  token: "thr1.AAAAAGD_GsQAH-bkeoCm3g.PpqQKPfg6Pg",
+  token: "thr1.AAAAAGD_20899wAMyJY7aQ.xJyjluHdvjU",
   // Token is REQUIRED to have this app to skip the recapctha!
   roomName: `🤡 ~JOKERBALL~ [v4] [7/24] :)`,
   maxPlayers: 15,
@@ -1546,10 +1615,11 @@ const makeSystemDefault = () => {
   SYSTEM.AFK_KICK_TICK = 900;
   SYSTEM.POSITION_TICK_FORCE = 960;
   SYSTEM.CHOOSE_PLAYER_TIMEOUT = 8000;
-};
+}; // makeSystemDefault();
+
 
 const ADMIN = {
-  PASSWORD: "123456a"
+  PASSWORD: "!123456a"
 }; //gamePhase: "idle" | "choosing" | "running" | "finishing"
 
 const strangenessesInit = {
@@ -1594,54 +1664,54 @@ const roomStates = {
   }
 }; // Player list and their states.
 
-const room_playerList = []; // Timeouts
+const playerList = []; // Timeouts
 
 let gameAgainDelay = 5000; //ms
 //** MAIN **//
 // Main Room Config, It is recommended to put headless room events here.
 
 window.onHBLoaded = () => {
-  room_room = HBInit(ROOM_INIT_PROPERTIES);
-  room_room.setDefaultStadium("Huge");
-  room_room.setTeamsLock(true);
-  room_room.setScoreLimit(SYSTEM.GAME_SCORE_LIMIT);
-  room_room.setTimeLimit(SYSTEM.GAME_TIME_LIMIT);
-  room_room.setKickRateLimit(60, 0, 0);
+  room = HBInit(ROOM_INIT_PROPERTIES);
+  room.setDefaultStadium("Huge");
+  room.setTeamsLock(true);
+  room.setScoreLimit(SYSTEM.GAME_SCORE_LIMIT);
+  room.setTimeLimit(SYSTEM.GAME_TIME_LIMIT);
+  room.setKickRateLimit(30, 0, 0);
 
-  room_room.onPlayerJoin = player => {
+  room.onPlayerJoin = player => {
     players.onPlayerJoin(player);
   };
 
-  room_room.onPlayerLeave = player => {
+  room.onPlayerLeave = player => {
     players.onPlayerLeave(player);
   };
 
-  room_room.onGameStart = () => {
+  room.onGameStart = () => {
     game.onGameStart();
   };
 
-  room_room.onGameStop = () => {
+  room.onGameStop = () => {
     game.onGameStop();
   };
 
-  room_room.onPlayerAdminChange = (player, byPlayer) => {
+  room.onPlayerAdminChange = (player, byPlayer) => {
     admin.onPlayerAdminChange(player, byPlayer);
   };
 
-  room_room.onTeamVictory = scores => {
+  room.onTeamVictory = scores => {
     game.onTeamVictory(scores);
   };
 
-  room_room.onTeamGoal = teamID => {};
+  room.onTeamGoal = teamID => {};
 
-  room_room.onPositionsReset = () => {
+  room.onPositionsReset = () => {
     console.log("res");
     roomStates.positionId += 1;
     roomStates.positionTick = 0;
     players.onPositionsReset();
   };
 
-  room_room.onGameTick = () => {
+  room.onGameTick = () => {
     players.assignPosition();
     game.checkAfksInGame();
     game.forceStart();
@@ -1655,26 +1725,29 @@ window.onHBLoaded = () => {
     roomStates.gameTick += 1;
   };
 
-  room_room.onPlayerTeamChange = (changedPlayer, byPlayer) => {
+  room.onPlayerTeamChange = (changedPlayer, byPlayer) => {
     players.onPlayerTeamChange(changedPlayer, byPlayer);
     roomStates.gamePhase !== "idle" && game.checkTheGame();
   };
 
-  room_room.onPlayerBallKick = player => {
+  room.onPlayerBallKick = player => {
     game.onPlayerBallKick(player);
   };
 
-  room_room.onPlayerActivity = player => {
+  room.onPlayerActivity = player => {
     game.useSpeedBoost(player);
     game.onPlayerActivity(player);
   };
 
-  room_room.onPlayerChat = (player, message) => {
+  room.onPlayerChat = (player, message) => {
     return processChat(player, message);
   };
 }; //** MAIN **//
-// Initialize headless room.
 
+
+setInterval(() => {
+  playerList.forEach(player => player.spamCount = 0);
+}, 5000); // Initialize headless room.
 
 if (typeof window.HBInit === 'function') {
   window.onHBLoaded();
