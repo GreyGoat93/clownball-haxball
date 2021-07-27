@@ -398,7 +398,7 @@ export const strangenesses = [
     {
         id: "TIME_TRAVEL_BALL",
         invoke(playerKicked){
-            const {x, y} = room.getDiscProperties(0);
+            const {x, y, xspeed, yspeed} = room.getDiscProperties(0);
             roomStates.strangenesses.timeTravelBall = true;
             let timeTravelBallId = roomStates.strangenesses.timeTravelBallId += 1;
             roomStates.strangenesses.timeTravelBallCoordinates = {x, y};
@@ -409,7 +409,7 @@ export const strangenesses = [
                     if(timeTravelBallId === roomStates.strangenesses.timeTravelBallId){
                         let dx = roomStates.strangenesses.timeTravelBallCoordinates?.x;
                         let dy = roomStates.strangenesses.timeTravelBallCoordinates?.y;
-                        room.setDiscProperties(0, {x: dx, y: dy})
+                        room.setDiscProperties(0, {x: dx, y: dy, xspeed, yspeed})
                         roomStates.strangenesses.timeTravelBall = false;
                         room.setDiscProperties(0, {color: 0xFFFFFF});
                     }
@@ -437,21 +437,97 @@ export const strangenesses = [
         }
     },
     {
+        id: "PULL_ENEMIES",
+        invoke(playerKicked){
+            const _player = players.findPlayerById(playerKicked.id);
+            const enemyTeamIds = players.findPlayersByTeam(game.convertTeam(_player.team)).map(pre => pre.id);
+            const enemyTeam = shuffle(enemyTeamIds);
+            players.findPlayersByTeam(_player.team).forEach((player, index) => {
+                let {x: rx, y: ry} = room.getPlayerDiscProperties(player.id);
+                let {x: bx, y: by} = room.getPlayerDiscProperties(enemyTeam[index]);
+                let dx = rx - bx;
+                let dy = ry - by;
+                let distance = Math.sqrt(dx*dx+dy*dy)
+                let multiplier = Math.abs((7/235) * distance + (5/47));
+                console.log(multiplier);
+                let speed = (multiplier * 2) / distance;
+                room.setPlayerDiscProperties(enemyTeam[index], {xspeed: dx * speed, yspeed: dy * speed});
+            })
+        }
+    },
+    {
+        id: "GO_TO_ENEMIES",
+        invoke(playerKicked){
+            const _player = players.findPlayerById(playerKicked.id);
+            const enemyTeamIds = players.findPlayersByTeam(game.convertTeam(_player.team)).map(pre => pre.id);
+            const enemyTeam = shuffle(enemyTeamIds);
+            players.findPlayersByTeam(_player.team).forEach((player, index) => {
+                let {x: rx, y: ry} = room.getPlayerDiscProperties(player.id);
+                let {x: bx, y: by} = room.getPlayerDiscProperties(enemyTeam[index]);
+                let dx = rx - bx;
+                let dy = ry - by;
+                let distance = Math.sqrt(dx*dx+dy*dy)
+                let multiplier = Math.abs((7/235) * distance + (5/47));
+                console.log(multiplier);
+                let speed = (multiplier * 2) / distance;
+                room.setPlayerDiscProperties(player.id, {xspeed: dx * speed * -1, yspeed: dy * speed * -1});
+            })
+        }
+    },
+    {
         id: "MAGNET",
         invoke(playerKicked){
             const _player = players.findPlayerById(playerKicked.id);
             _player.strangenesses.magnet = true;
             let magnetId = _player.strangenesses.magnetId += 1;
             strangenessUsage.push({
-                tick: roomStates.gameTick + 240,
+                tick: roomStates.gameTick + 300,
                 positionId: roomStates.positionId,
                 invoke(){
                     if(magnetId === _player.strangenesses.magnetId){
                         _player.strangenesses.magnet = false;
                         room.setDiscProperties(0, {xgravity: 0, ygravity: 0});
+                        room.setPlayerAvatar(_player.id, DEFAULT_AVATAR)
                     }
                 }
             });
+        }
+    },
+    {
+        id: "AIR_PUMP",
+        invoke(playerKicked){
+            const _player = players.findPlayerById(playerKicked.id);
+            _player.strangenesses.airPump = true;
+            let airPumpId = _player.strangenesses.airPumpId += 1;
+            strangenessUsage.push({
+                tick: roomStates.gameTick + 300,
+                positionId: roomStates.positionId,
+                invoke(){
+                    if(airPumpId === _player.strangenesses.airPumpId){
+                        _player.strangenesses.airPump = false;
+                        room.setDiscProperties(0, {xgravity: 0, ygravity: 0});
+                        room.setPlayerAvatar(_player.id, DEFAULT_AVATAR)
+                    }
+                }
+            });
+        }
+    },
+    {
+        id: "DIAMOND_FIST",
+        invoke(playerKicked){
+            const _player = players.findPlayerById(playerKicked.id);
+            _player.strangenesses.diamondFist = true;
+            let diamondFistId = _player.strangenesses.diamondFistId += 1;
+            strangenessUsage.push({
+                tick: roomStates.gameTick + 300,
+                positionId: roomStates.positionId,
+                invoke(){
+                    if(diamondFistId === _player.strangenesses.diamondFistId){
+                        _player.strangenesses.diamondFist = false;
+                        room.setPlayerAvatar(_player.id, DEFAULT_AVATAR);
+                    }
+                }
+            })
         }
     }
 ]

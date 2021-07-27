@@ -3,6 +3,9 @@ import {announceLouder, announceTeams, COLORS, notice} from './announcements';
 import { strangenesses, strangenessUsage } from './strangeness.js';
 import players, { INITIAL_PLAYER_VALUES, INV_MASS_PLAYER } from './players.js'
 import discordWebhook from './api/discordWebhook.js';
+import { systemOfEquationsSumSingleY } from './helper/math.js';
+
+const SELF_STRANGENESSES = ["SUPERMAN", "SPEED_BOOST", "MAKE_SELF_FROZEN", "MAGNET", "AIR_PUMP", "DIAMOND_FIST", "TIME_TRAVEL_SELF"];
 
 const notifyMatchStarted = () => {
     let redField = [];
@@ -334,12 +337,16 @@ export default {
         setTimeout(() => {room.stopGame()}, 1000);
     },
     onPlayerBallKick: function(player){
-        // let _strangenesses = strangenesses;
-        // roomStates.strangenesses.frozenBall && (_strangenesses = [])
-        // let length = _strangenesses.length;
-        // let strangeness = _strangenesses[Math.floor(Math.random() * length)]
-        // strangeness?.invoke(player);
-        strangenesses.find(pre => pre.id === "MAGNET").invoke(player);
+        let _player = players.findPlayerById(player.id);
+        let _strangenesses = strangenesses;
+        players.checkIfPlayerHasSelfStrangeness(_player) && (
+            _strangenesses = _strangenesses.filter(pre => !SELF_STRANGENESSES.includes(pre.id))
+        )
+        roomStates.strangenesses.frozenBall && (_strangenesses = [])
+        let length = _strangenesses.length;
+        let strangeness = _strangenesses[Math.floor(Math.random() * length)]
+        strangeness?.invoke(player);
+        // strangenesses.find(pre => pre.id === "DIAMOND_FIST").invoke(player);
     },
     makeAllPlayerWeak: function(){
         playerList.filter(players => players.team !== 0).forEach(player => {
@@ -408,20 +415,60 @@ export default {
         roomStates.strangenesses.timeTravelBall && room.setDiscProperties(0, {color: -1});
     },
     checkIfPlayersMagnet: function(){
-        playerList.forEach(player => {
+        let xgravity = 0;
+        let ygravity = 0;
+        playerList.filter(player => player.team !== 0).forEach(player => {
+            let {x, y, radius: r} = room.getDiscProperties(0);
+            let {x: bx, y: by, radius: br} = room.getPlayerDiscProperties(player.id);
+            let dx = x - bx;
+            let dy = y - by;
+            let sumR = r + br; 
+            let distance = Math.sqrt(dx*dx+dy*dy);
             if(player.strangenesses.magnet){
-                let {x, y} = room.getDiscProperties(0);
-                let {x: bx, y: by} = room.getPlayerDiscProperties(player.id);
-                let dx = x - bx;
-                let dy = y - by;
-                let distance = Math.sqrt(dx*dx+dy*dy);
-                let multiplier = Math.abs((-0.0000025) * distance + (0.625));
-                if(distance < 500 && distance > 50){
-                    console.log(multiplier);
-                    console.log(distance * dx);
-                    console.log(distance * dy);
-                    room.setDiscProperties(0, {xgravity: distance * dx * multiplier * -1, ygravity: distance * dy * multiplier * -1})
+                room.setPlayerAvatar(player.id, "🧲");
+                let equation = systemOfEquationsSumSingleY(300 * 300, sumR * sumR, 0, 0.05);
+                let multiplier = Math.abs((equation.x) * distance + (equation.y));
+                let speed = multiplier / distance;
+                if(distance < 300 && distance > r + br){
+                    let xg = speed * dx * -1;
+                    let yg = speed * dy * -1;
+                    xgravity += xg;
+                    ygravity += yg;
                 }
+            }
+            if(player.strangenesses.airPump){
+                room.setPlayerAvatar(player.id, "💨");
+                let equation = systemOfEquationsSumSingleY(400 * 400, sumR * sumR, 0, 0.05);
+                let multiplier = Math.abs((equation.x) * distance + (equation.y));
+                let speed = multiplier / distance;
+                if(distance < 400 && distance > r + br){
+                    let xg = speed * dx;
+                    let yg = speed * dy;
+                    xgravity += xg;
+                    ygravity += yg;
+                }
+            }
+        })
+        room.setDiscProperties(0, {xgravity, ygravity});
+    },
+    checkIfPlayerDiamondFist: function(){
+        playerList.filter(pre => pre.team !== 0).forEach(player => {
+            if(player.strangenesses.diamondFist){
+                room.setPlayerAvatar(player.id, "🥊")
+                const enemyTeam = players.findPlayersByTeam(this.convertTeam(player.id));
+                let {x, y, radius} = room.getPlayerDiscProperties(player.id);
+                enemyTeam.forEach(enemy => {
+                    let {x: ex, y: ey, radius: eradius} = room.getPlayerDiscProperties(enemy.id);
+                    let dx = x - ex;
+                    let dy = y - ey;
+                    let sradius = radius + eradius;
+                    let distance = Math.sqrt(dx*dx+dy*dy);
+                    let distanceMinusRadius = distance - sradius;
+                    let speed = 25 / distance;
+                    if(distanceMinusRadius < 1.25){
+                        room.setPlayerDiscProperties(enemy.id, {xspeed: dx * speed * -1, yspeed: dy * speed * -1});
+                    }
+                }); 
             }
         })
     },

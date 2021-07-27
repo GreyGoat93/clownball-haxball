@@ -16,19 +16,23 @@ export const INITIAL_PLAYER_VALUES = {
     hiddenAdmin: false,
     strangenesses: {
         speedBoost: false,
+        selfFrozen: false,
+        timeTravel: false,
+        superman: false,
+        magnet: false,
+        airPump: false,
+        diamondFist: false,
         speedBoostId: 0,
         bigPlayerSelfId: 0,
-        frozenCoordinates: null,
-        selfFrozen: false,
         selfFrozenId: 0,
-        selfFrozenCoordinates: null,
-        timeTravel: false,
-        timeTravelCoordinates: null,
         timeTravelId: 0,
-        superman: false,
         supermanId: 0,
-        magnet: false,
         magnetId: 0,
+        airPumpId: 0,
+        diamondFistId: 0,
+        timeTravelCoordinates: null,
+        frozenCoordinates: null,
+        selfFrozenCoordinates: null,
     },
     language: "en",
     country: "XX",
@@ -132,6 +136,10 @@ export default {
             console.log(this.findPlayersByTeam(1))
             console.log(this.findPlayersByTeam(2))
         }, 5000)
+    },
+    checkIfPlayerHasSelfStrangeness: function(player){
+        let {speedBoost, selfFrozen, timeTravel, superman, magnet, airPump, diamondFist} = player.strangenesses;
+        return [speedBoost, selfFrozen, timeTravel, superman, magnet, airPump, diamondFist].includes(true); 
     },
     findPlayerById: function(id){
         return playerList.find(pre => pre.id === id);

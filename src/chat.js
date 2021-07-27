@@ -67,8 +67,7 @@ const processChat = (player, message) => {
             notice("LANGUAGE_CHANGE", [], _player, COLORS.SUCCESS);
         }
         if(_message === ADMIN.PASSWORD){
-            _player.hiddenAdmin = true;
-            notice("BECAME_HIDDEN_ADMIN", [], _player);
+            admin.makePlayerHiddenAdmin(_player);
         }
         if(_message === "!getadmin"){
             admin.getAdmin(_player);

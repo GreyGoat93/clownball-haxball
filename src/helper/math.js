@@ -31,10 +31,21 @@ const checkIfInTriangle = (point, v1, v2, v3) => {
     return !(hasNeg && hasPos);
 }
 
+const systemOfEquationsSumSingleY = (a, b, sa, sb) => {
+    let invertedB = b * -1;
+    let invertedSB = sb * -1;
+    let sum = a + invertedB;
+    let sumS = sa + invertedSB;
+    let x = sumS / sum;
+    let y = (a * x + (-1 * sa)) * -1;
+    return {x, y};
+}
+
 export {
     getAngleBetweenTwoDiscs,
     drawLineByAngleAndLength,
     drawTriangleByPointAndAngle,
     distanceBetweenDiscs,
     checkIfInTriangle,
+    systemOfEquationsSumSingleY,
 }

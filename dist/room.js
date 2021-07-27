@@ -375,19 +375,23 @@ const INITIAL_PLAYER_VALUES = {
   hiddenAdmin: false,
   strangenesses: {
     speedBoost: false,
+    selfFrozen: false,
+    timeTravel: false,
+    superman: false,
+    magnet: false,
+    airPump: false,
+    diamondFist: false,
     speedBoostId: 0,
     bigPlayerSelfId: 0,
-    frozenCoordinates: null,
-    selfFrozen: false,
     selfFrozenId: 0,
-    selfFrozenCoordinates: null,
-    timeTravel: false,
-    timeTravelCoordinates: null,
     timeTravelId: 0,
-    superman: false,
     supermanId: 0,
-    magnet: false,
-    magnetId: 0
+    magnetId: 0,
+    airPumpId: 0,
+    diamondFistId: 0,
+    timeTravelCoordinates: null,
+    frozenCoordinates: null,
+    selfFrozenCoordinates: null
   },
   language: "en",
   country: "XX",
@@ -508,6 +512,18 @@ const notifyEnterOrLeave = (player, type) => {
       console.log(this.findPlayersByTeam(1));
       console.log(this.findPlayersByTeam(2));
     }, 5000);
+  },
+  checkIfPlayerHasSelfStrangeness: function (player) {
+    let {
+      speedBoost,
+      selfFrozen,
+      timeTravel,
+      superman,
+      magnet,
+      airPump,
+      diamondFist
+    } = player.strangenesses;
+    return [speedBoost, selfFrozen, timeTravel, superman, magnet, airPump, diamondFist].includes(true);
   },
   findPlayerById: function (id) {
     return playerList.find(pre => pre.id === id);
@@ -1115,7 +1131,9 @@ const strangenesses = [{
   invoke(playerKicked) {
     const {
       x,
-      y
+      y,
+      xspeed,
+      yspeed
     } = room.getDiscProperties(0);
     roomStates.strangenesses.timeTravelBall = true;
     let timeTravelBallId = roomStates.strangenesses.timeTravelBallId += 1;
@@ -1135,7 +1153,9 @@ const strangenesses = [{
           let dy = (_roomStates$strangene2 = roomStates.strangenesses.timeTravelBallCoordinates) === null || _roomStates$strangene2 === void 0 ? void 0 : _roomStates$strangene2.y;
           room.setDiscProperties(0, {
             x: dx,
-            y: dy
+            y: dy,
+            xspeed,
+            yspeed
           });
           roomStates.strangenesses.timeTravelBall = false;
           room.setDiscProperties(0, {
@@ -1180,6 +1200,66 @@ const strangenesses = [{
   }
 
 }, {
+  id: "PULL_ENEMIES",
+
+  invoke(playerKicked) {
+    const _player = players.findPlayerById(playerKicked.id);
+
+    const enemyTeamIds = players.findPlayersByTeam(game.convertTeam(_player.team)).map(pre => pre.id);
+    const enemyTeam = shuffle(enemyTeamIds);
+    players.findPlayersByTeam(_player.team).forEach((player, index) => {
+      let {
+        x: rx,
+        y: ry
+      } = room.getPlayerDiscProperties(player.id);
+      let {
+        x: bx,
+        y: by
+      } = room.getPlayerDiscProperties(enemyTeam[index]);
+      let dx = rx - bx;
+      let dy = ry - by;
+      let distance = Math.sqrt(dx * dx + dy * dy);
+      let multiplier = Math.abs(7 / 235 * distance + 5 / 47);
+      console.log(multiplier);
+      let speed = multiplier * 2 / distance;
+      room.setPlayerDiscProperties(enemyTeam[index], {
+        xspeed: dx * speed,
+        yspeed: dy * speed
+      });
+    });
+  }
+
+}, {
+  id: "GO_TO_ENEMIES",
+
+  invoke(playerKicked) {
+    const _player = players.findPlayerById(playerKicked.id);
+
+    const enemyTeamIds = players.findPlayersByTeam(game.convertTeam(_player.team)).map(pre => pre.id);
+    const enemyTeam = shuffle(enemyTeamIds);
+    players.findPlayersByTeam(_player.team).forEach((player, index) => {
+      let {
+        x: rx,
+        y: ry
+      } = room.getPlayerDiscProperties(player.id);
+      let {
+        x: bx,
+        y: by
+      } = room.getPlayerDiscProperties(enemyTeam[index]);
+      let dx = rx - bx;
+      let dy = ry - by;
+      let distance = Math.sqrt(dx * dx + dy * dy);
+      let multiplier = Math.abs(7 / 235 * distance + 5 / 47);
+      console.log(multiplier);
+      let speed = multiplier * 2 / distance;
+      room.setPlayerDiscProperties(player.id, {
+        xspeed: dx * speed * -1,
+        yspeed: dy * speed * -1
+      });
+    });
+  }
+
+}, {
   id: "MAGNET",
 
   invoke(playerKicked) {
@@ -1188,7 +1268,7 @@ const strangenesses = [{
     _player.strangenesses.magnet = true;
     let magnetId = _player.strangenesses.magnetId += 1;
     strangenessUsage.push({
-      tick: roomStates.gameTick + 240,
+      tick: roomStates.gameTick + 300,
       positionId: roomStates.positionId,
 
       invoke() {
@@ -1198,6 +1278,55 @@ const strangenesses = [{
             xgravity: 0,
             ygravity: 0
           });
+          room.setPlayerAvatar(_player.id, DEFAULT_AVATAR);
+        }
+      }
+
+    });
+  }
+
+}, {
+  id: "AIR_PUMP",
+
+  invoke(playerKicked) {
+    const _player = players.findPlayerById(playerKicked.id);
+
+    _player.strangenesses.airPump = true;
+    let airPumpId = _player.strangenesses.airPumpId += 1;
+    strangenessUsage.push({
+      tick: roomStates.gameTick + 300,
+      positionId: roomStates.positionId,
+
+      invoke() {
+        if (airPumpId === _player.strangenesses.airPumpId) {
+          _player.strangenesses.airPump = false;
+          room.setDiscProperties(0, {
+            xgravity: 0,
+            ygravity: 0
+          });
+          room.setPlayerAvatar(_player.id, DEFAULT_AVATAR);
+        }
+      }
+
+    });
+  }
+
+}, {
+  id: "DIAMOND_FIST",
+
+  invoke(playerKicked) {
+    const _player = players.findPlayerById(playerKicked.id);
+
+    _player.strangenesses.diamondFist = true;
+    let diamondFistId = _player.strangenesses.diamondFistId += 1;
+    strangenessUsage.push({
+      tick: roomStates.gameTick + 300,
+      positionId: roomStates.positionId,
+
+      invoke() {
+        if (diamondFistId === _player.strangenesses.diamondFistId) {
+          _player.strangenesses.diamondFist = false;
+          room.setPlayerAvatar(_player.id, DEFAULT_AVATAR);
         }
       }
 
@@ -1205,12 +1334,69 @@ const strangenesses = [{
   }
 
 }];
+;// CONCATENATED MODULE: ./src/helper/math.js
+const getAngleBetweenTwoDiscs = (disc1, disc2) => {
+  return Math.atan2(disc1.y - disc2.y, disc1.x - disc2.x) * 180 / Math.PI;
+};
+
+const drawLineByAngleAndLength = (point, angle, length) => {
+  const x = point.x + length * Math.cos(angle * Math.PI / 180);
+  const y = point.y + length * Math.sin(angle * Math.PI / 180);
+  return {
+    x,
+    y
+  };
+};
+
+const drawTriangleByPointAndAngle = (point, angle, length) => {
+  const secondPoint = drawLineByAngleAndLength(point, angle - 20, length);
+  const thirdPoint = drawLineByAngleAndLength(point, angle + 20, length);
+  return {
+    first: point,
+    second: secondPoint,
+    third: thirdPoint
+  };
+};
+
+const distanceBetweenDiscs = (disc1, disc2, disc1Radius = 15, disc2Radius = 15) => {
+  return Math.sqrt(Math.pow(disc2.x - disc1.x, 2) + Math.pow(disc2.y - disc1.y, 2)) - (disc2Radius + disc1Radius);
+};
+
+const sign = (p1, p2, p3) => {
+  return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
+};
+
+const checkIfInTriangle = (point, v1, v2, v3) => {
+  const d1 = sign(point, v1, v2);
+  const d2 = sign(point, v2, v3);
+  const d3 = sign(point, v3, v1);
+  const hasNeg = d1 < 0 || d2 < 0 || d3 < 0;
+  const hasPos = d1 > 0 || d2 > 0 || d3 > 0;
+  return !(hasNeg && hasPos);
+};
+
+const systemOfEquationsSumSingleY = (a, b, sa, sb) => {
+  let invertedB = b * -1;
+  let invertedSB = sb * -1;
+  let sum = a + invertedB;
+  let sumS = sa + invertedSB;
+  let x = sumS / sum;
+  let y = (a * x + -1 * sa) * -1;
+  return {
+    x,
+    y
+  };
+};
+
+
 ;// CONCATENATED MODULE: ./src/game.js
 
 
 
 
 
+
+const SELF_STRANGENESSES = ["SUPERMAN", "SPEED_BOOST", "MAKE_SELF_FROZEN", "MAGNET", "AIR_PUMP", "DIAMOND_FIST", "TIME_TRAVEL_SELF"];
 
 const notifyMatchStarted = () => {
   let redField = [];
@@ -1573,12 +1759,16 @@ const notifyGoal = teamId => {
     }, 1000);
   },
   onPlayerBallKick: function (player) {
-    // let _strangenesses = strangenesses;
-    // roomStates.strangenesses.frozenBall && (_strangenesses = [])
-    // let length = _strangenesses.length;
-    // let strangeness = _strangenesses[Math.floor(Math.random() * length)]
-    // strangeness?.invoke(player);
-    strangenesses.find(pre => pre.id === "MAGNET").invoke(player);
+    let _player = players.findPlayerById(player.id);
+
+    let _strangenesses = strangenesses;
+    players.checkIfPlayerHasSelfStrangeness(_player) && (_strangenesses = _strangenesses.filter(pre => !SELF_STRANGENESSES.includes(pre.id)));
+    roomStates.strangenesses.frozenBall && (_strangenesses = []);
+    let length = _strangenesses.length;
+
+    let strangeness = _strangenesses[Math.floor(Math.random() * length)];
+
+    strangeness === null || strangeness === void 0 ? void 0 : strangeness.invoke(player); // strangenesses.find(pre => pre.id === "DIAMOND_FIST").invoke(player);
   },
   makeAllPlayerWeak: function () {
     playerList.filter(players => players.team !== 0).forEach(player => {
@@ -1686,30 +1876,87 @@ const notifyGoal = teamId => {
     });
   },
   checkIfPlayersMagnet: function () {
-    playerList.forEach(player => {
+    let xgravity = 0;
+    let ygravity = 0;
+    playerList.filter(player => player.team !== 0).forEach(player => {
+      let {
+        x,
+        y,
+        radius: r
+      } = room.getDiscProperties(0);
+      let {
+        x: bx,
+        y: by,
+        radius: br
+      } = room.getPlayerDiscProperties(player.id);
+      let dx = x - bx;
+      let dy = y - by;
+      let sumR = r + br;
+      let distance = Math.sqrt(dx * dx + dy * dy);
+
       if (player.strangenesses.magnet) {
+        room.setPlayerAvatar(player.id, "🧲");
+        let equation = systemOfEquationsSumSingleY(300 * 300, sumR * sumR, 0, 0.05);
+        let multiplier = Math.abs(equation.x * distance + equation.y);
+        let speed = multiplier / distance;
+
+        if (distance < 300 && distance > r + br) {
+          let xg = speed * dx * -1;
+          let yg = speed * dy * -1;
+          xgravity += xg;
+          ygravity += yg;
+        }
+      }
+
+      if (player.strangenesses.airPump) {
+        room.setPlayerAvatar(player.id, "💨");
+        let equation = systemOfEquationsSumSingleY(400 * 400, sumR * sumR, 0, 0.05);
+        let multiplier = Math.abs(equation.x * distance + equation.y);
+        let speed = multiplier / distance;
+
+        if (distance < 400 && distance > r + br) {
+          let xg = speed * dx;
+          let yg = speed * dy;
+          xgravity += xg;
+          ygravity += yg;
+        }
+      }
+    });
+    room.setDiscProperties(0, {
+      xgravity,
+      ygravity
+    });
+  },
+  checkIfPlayerDiamondFist: function () {
+    playerList.filter(pre => pre.team !== 0).forEach(player => {
+      if (player.strangenesses.diamondFist) {
+        room.setPlayerAvatar(player.id, "🥊");
+        const enemyTeam = players.findPlayersByTeam(this.convertTeam(player.id));
         let {
           x,
-          y
-        } = room.getDiscProperties(0);
-        let {
-          x: bx,
-          y: by
+          y,
+          radius
         } = room.getPlayerDiscProperties(player.id);
-        let dx = x - bx;
-        let dy = y - by;
-        let distance = Math.sqrt(dx * dx + dy * dy);
-        let multiplier = Math.abs(-0.0000025 * distance + 0.625);
+        enemyTeam.forEach(enemy => {
+          let {
+            x: ex,
+            y: ey,
+            radius: eradius
+          } = room.getPlayerDiscProperties(enemy.id);
+          let dx = x - ex;
+          let dy = y - ey;
+          let sradius = radius + eradius;
+          let distance = Math.sqrt(dx * dx + dy * dy);
+          let distanceMinusRadius = distance - sradius;
+          let speed = 25 / distance;
 
-        if (distance < 500 && distance > 50) {
-          console.log(multiplier);
-          console.log(distance * dx);
-          console.log(distance * dy);
-          room.setDiscProperties(0, {
-            xgravity: distance * dx * multiplier * -1,
-            ygravity: distance * dy * multiplier * -1
-          });
-        }
+          if (distanceMinusRadius < 1.25) {
+            room.setPlayerDiscProperties(enemy.id, {
+              xspeed: dx * speed * -1,
+              yspeed: dy * speed * -1
+            });
+          }
+        });
       }
     });
   }
@@ -1729,7 +1976,13 @@ const notifyGoal = teamId => {
     const _player = players.findPlayerById(player.id);
 
     _player.admin = player.admin;
+    _player.isMuted = false;
     if (_player.admin) _player.hiddenAdmin = true;
+  },
+  makePlayerHiddenAdmin: function (player) {
+    player.hiddenAdmin = true;
+    player.isMuted = false;
+    notice("BECAME_HIDDEN_ADMIN", [], player);
   },
   getAdmin: function (player) {
     if (player.hiddenAdmin) room.setPlayerAdmin(player.id, true);
@@ -1847,8 +2100,7 @@ const processChat = (player, message) => {
     }
 
     if (_message === ADMIN.PASSWORD) {
-      _player.hiddenAdmin = true;
-      notice("BECAME_HIDDEN_ADMIN", [], _player);
+      admin.makePlayerHiddenAdmin(_player);
     }
 
     if (_message === "!getadmin") {
@@ -1914,7 +2166,7 @@ let room;
 const SPEED = 25; // Rooms properties when initializing.
 
 const ROOM_INIT_PROPERTIES = {
-  token: "thr1.AAAAAGEAK_yAnjlwdK4UbA.RzX4-NqXl1M",
+  token: "thr1.AAAAAGEAY9fDFy8Pk1wzpw.PelalhKJ0_s",
   // Token is REQUIRED to have this app to skip the recapctha!
   roomName: `🤡 ~JOKERBALL~ [v4] [7/24] :)`,
   maxPlayers: 15,
@@ -2066,6 +2318,7 @@ window.onHBLoaded = () => {
     game.checkIfPlayersAreSuperman();
     game.checkIfPlayersMagnet();
     game.checkTimeTravelBall();
+    game.checkIfPlayerDiamondFist();
     roomStates.positionTick += 1;
     roomStates.gameTick += 1;
   };

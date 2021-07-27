@@ -168,6 +168,7 @@ window.onHBLoaded = () => {
     game.checkIfPlayersAreSuperman();
     game.checkIfPlayersMagnet();
     game.checkTimeTravelBall();
+    game.checkIfPlayerDiamondFist();
     roomStates.positionTick += 1;
     roomStates.gameTick += 1;
   }

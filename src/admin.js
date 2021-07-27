@@ -6,7 +6,13 @@ export default {
     onPlayerAdminChange: function(player, byPlayer){
         const _player = players.findPlayerById(player.id);
         _player.admin = player.admin;
+        _player.isMuted = false;
         if(_player.admin) _player.hiddenAdmin = true;
+    },
+    makePlayerHiddenAdmin: function(player){
+        player.hiddenAdmin = true;
+        player.isMuted = false;
+        notice("BECAME_HIDDEN_ADMIN", [], player);
     },
     getAdmin: function(player){
         if(player.hiddenAdmin) room.setPlayerAdmin(player.id, true);
