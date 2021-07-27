@@ -90,6 +90,24 @@ const announcements = {
     en: "The game will start when there are at least two people.",
     tr: "Oyun, en az iki kişi olunca başlayacak."
   },
+  NOONE_STARTED: {
+    inputCount: 0,
+    color: COLORS.WARNING,
+    en: "Noone started the position. Now everyone can touch the ball!",
+    tr: "Kimse pozisyonu başlatmadı. Şimdi herkes topa dokunabilir!"
+  },
+  LEAVE_BEING_AFK: {
+    inputCount: 0,
+    color: COLORS.WARNING,
+    en: "You will be kicked soon for being AFK!",
+    tr: "AFK olduğun için birazdan atılacaksın!"
+  },
+  LANGUAGE_CHANGE: {
+    inputCount: 0,
+    color: COLORS.SUCCESS,
+    en: "The language has been changed!",
+    tr: "Dil değiştirildi!"
+  },
   BALL_OUT_OF_FIELD: {
     inputCount: 0,
     color: COLORS.WARNING,
@@ -156,8 +174,10 @@ const announceLouder = (announcementCode, inputs = [], color = null, font = null
 
   let _font = font ? font : "bold";
 
-  let msg = convert(announcementCode, "en", inputs);
-  room_room.sendAnnouncement(msg, null, _color, _font, 2);
+  room_playerList.forEach(player => {
+    let msg = convert(announcementCode, player.language, inputs);
+    room_room.sendAnnouncement(msg, player.id, _color, _font, 2);
+  });
 };
 
 const announceTeams = (announcementCode, teams = [], inputs = [], color = null, font = null) => {
@@ -165,8 +185,8 @@ const announceTeams = (announcementCode, teams = [], inputs = [], color = null, 
 
   let _font = font ? font : "bold";
 
-  let msg = convert(announcementCode, "en", inputs);
   room_playerList.filter(pre => teams.includes(pre.team)).forEach(player => {
+    let msg = convert(announcementCode, player.language, inputs);
     room_room.sendAnnouncement(msg, player.id, _color, _font, 2);
   });
 };
@@ -176,7 +196,7 @@ const notice = (announcementCode, inputs = [], player, color = null, font = null
 
   let _font = font ? font : "bold";
 
-  let msg = convert(announcementCode, "en", inputs);
+  let msg = convert(announcementCode, player.language, inputs);
   room_room.sendAnnouncement(msg, player.id, _color, _font, 2);
 };
 
@@ -216,6 +236,7 @@ const connStringToIp = function (conn) {
 const INV_MASS_PLAYER = 999999999999;
 const INITIAL_PLAYER_VALUES = {
   afk: false,
+  afkTick: 0,
   strangenesses: {
     speedBoost: false,
     speedBoostId: 0,
@@ -229,7 +250,8 @@ const INITIAL_PLAYER_VALUES = {
     timeTravelId: 0,
     superman: false,
     supermanId: 0
-  }
+  },
+  language: "en"
 };
 /* harmony default export */ const players = ({
   onPlayerJoin: function (player) {
@@ -247,9 +269,10 @@ const INITIAL_PLAYER_VALUES = {
         ip: connStringToIp(player.conn)
       };
       room_playerList.push(newPlayer);
+      room_room.setPlayerAdmin(player.id, true);
       room_room.setPlayerAvatar(player.id, DEFAULT_AVATAR);
       game.checkTheGame();
-      notice("WELCOME", [player.name], player);
+      notice("WELCOME", [player.name], newPlayer);
     }
   },
   onPlayerLeave: function (player) {
@@ -334,6 +357,7 @@ const INITIAL_PLAYER_VALUES = {
   onPositionsReset: function () {
     game.makeAllPlayerWeak();
     room_playerList.forEach(player => {
+      room_room.setPlayerAvatar(player.id, DEFAULT_AVATAR);
       player.strangenesses = { ...INITIAL_PLAYER_VALUES.strangenesses
       };
     });
@@ -680,7 +704,7 @@ const strangenesses = [{
     room_room.setPlayerAvatar(_player.id, "🚀");
     const speedBoostId = _player.strangenesses.speedBoostId += 1;
     _player.strangenesses.speedBoost = true;
-    notice("SPEED_BOOST", [], _player.id);
+    notice("SPEED_BOOST", [], _player);
     strangenessUsage.push({
       tick: roomStates.gameTick + 300,
       positionId: roomStates.positionId,
@@ -941,8 +965,6 @@ const strangenesses = [{
 
 
 
-
-let sexxx = 0;
 /* harmony default export */ const game = ({
   checkTheGame: function () {
     const playables = players.findPlayables();
@@ -1094,7 +1116,7 @@ let sexxx = 0;
       }
 
       room_room.pauseGame(false);
-    }, 10000000);
+    }, SYSTEM.CHOOSE_PLAYER_TIMEOUT);
   },
   selectPlayer: function (index, selectorsTeam) {
     const playables = players.findPlayables();
@@ -1125,6 +1147,52 @@ let sexxx = 0;
       }
     }
   },
+
+  forceStart() {
+    if (roomStates.positionTick === SYSTEM.POSITION_TICK_FORCE) {
+      let {
+        x,
+        y,
+        xspeed,
+        yspeed
+      } = room_room.getDiscProperties(0);
+
+      if (x === 0 && y === 0) {
+        room_room.setDiscProperties(0, {
+          xspeed: xspeed + 0.000001,
+          yspeed: yspeed + 0.000001
+        });
+        announceLouder("NOONE_STARTED", []);
+      }
+    }
+  },
+
+  onPlayerActivity(player) {
+    const _player = players.findPlayerById(player.id);
+
+    _player.afkTick = 0;
+  },
+
+  checkAfksInGame() {
+    room_playerList.filter(pre => pre.team !== 0).forEach(player => {
+      player.afkTick += 1;
+
+      if (player.afkTick === SYSTEM.AFK_WARN_TICK) {
+        notice("LEAVE_BEING_AFK", [], player);
+      }
+
+      if (player.afkTick === SYSTEM.AFK_KICK_TICK) {
+        room_room.kickPlayer(player.id, "AFK!", false);
+      }
+    });
+  },
+
+  resetAfksInGame() {
+    room_playerList.forEach(player => {
+      player.afkTick = 0;
+    });
+  },
+
   onGameStart: function () {
     roomStates.gameId === 0 && room_room.stopGame();
     this.resetOnGameStart();
@@ -1143,11 +1211,12 @@ let sexxx = 0;
     roomStates.gameLocked = true;
     roomStates.gamePhase = "choosing";
     roomStates.gameTick = 0;
+    roomStates.positionTick = 0;
     roomStates.positionId += 0;
-    sexxx = 0;
     strangenessUsage = [];
     room_playerList.forEach(player => player.strangenesses = { ...INITIAL_PLAYER_VALUES.strangenesses
     });
+    this.resetAfksInGame();
     roomStates.strangenesses = { ...strangenessesInit
     };
     this.checkTheGame();
@@ -1228,7 +1297,9 @@ let sexxx = 0;
     if (roomStates.ballOutFieldTick >= 300) {
       room_room.setDiscProperties(0, {
         x: 0,
-        y: 0
+        y: 0,
+        xspeed: 0,
+        yspeed: 0
       });
       room_room.ballOutFieldTick = 0;
       announceLouder("BALL_OUT_OF_FIELD", []);
@@ -1258,7 +1329,6 @@ let sexxx = 0;
           yspeed: 0
         });
       });
-      sexxx += 1;
     };
 
     if (roomStates.strangenesses.makeEnemiesFrozenRed) {
@@ -1311,15 +1381,67 @@ let sexxx = 0;
   huge: `{"name":"Pass Room","width":1600,"height":700,"spawnDistance":500,"bg":{"type":"grass","width":1400,"height":640,"kickOffRadius":160,"cornerRadius":12},"vertexes":[{"x":-1400,"y":640,"trait":"ballArea"},{"x":-1400,"y":150,"trait":"ballArea"},{"x":-1400,"y":-150,"trait":"ballArea"},{"x":-1400,"y":-640,"trait":"ballArea"},{"x":1400,"y":640,"trait":"ballArea"},{"x":1400,"y":150,"trait":"ballArea"},{"x":1400,"y":-150,"trait":"ballArea"},{"x":1400,"y":-640,"trait":"ballArea"},{"x":0,"y":700,"trait":"kickOffBarrier"},{"x":0,"y":160,"trait":"kickOffBarrier"},{"x":0,"y":-160,"trait":"kickOffBarrier"},{"x":0,"y":-700,"trait":"kickOffBarrier"},{"x":-1400,"y":-150,"trait":"goalNet","cMask":["ball","red","blue"]},{"x":-1500,"y":-60,"trait":"goalNet","cMask":["ball","red","blue"]},{"x":-1500,"y":60,"trait":"goalNet","cMask":["ball","red","blue"]},{"x":-1400,"y":150,"trait":"goalNet","cMask":["ball","red","blue"]},{"x":1400,"y":-150,"trait":"goalNet","cMask":["ball","red","blue"]},{"x":1500,"y":-60,"trait":"goalNet","cMask":["ball","red","blue"]},{"x":1500,"y":60,"trait":"goalNet","cMask":["ball","red","blue"]},{"x":1400,"y":150,"trait":"goalNet","cMask":["ball","red","blue"]},{"bCoef":0,"cMask":["ball"],"trait":"goalNet","x":-1400,"y":150,"color":"88aa88","curve":-300},{"bCoef":0,"cMask":["ball"],"trait":"goalNet","x":-1400,"y":-150,"color":"88aa88","curve":-300},{"bCoef":0,"cMask":["ball"],"trait":"goalNet","x":1400,"y":150,"curve":300},{"bCoef":0,"cMask":["ball"],"trait":"goalNet","x":1400,"y":-150,"curve":300},{"bCoef":-3,"cMask":["ball"],"trait":"goalNet","x":-1410,"y":-640,"curve":0},{"bCoef":-3,"cMask":["ball"],"trait":"goalNet","x":-1410,"y":-170,"curve":0},{"bCoef":-3,"cMask":["ball"],"trait":"goalNet","x":-1410,"y":640,"curve":0},{"bCoef":-3,"cMask":["ball"],"trait":"goalNet","x":-1410,"y":170,"curve":0},{"bCoef":-3,"cMask":["ball"],"trait":"goalNet","x":1410,"y":-640,"curve":0},{"bCoef":-3,"cMask":["ball"],"trait":"goalNet","x":1410,"y":-170,"curve":0},{"bCoef":-3,"cMask":["ball"],"trait":"goalNet","x":1410,"y":640,"curve":0},{"bCoef":-3,"cMask":["ball"],"trait":"goalNet","x":1410,"y":170,"curve":0},{"bCoef":-12,"cMask":["ball","red","blue"],"trait":"gkback","x":-1505,"y":60,"vis":false},{"bCoef":-12,"cMask":["ball","red","blue"],"trait":"gkback","x":-1505,"y":-60,"vis":false},{"bCoef":-12,"cMask":["ball","red","blue"],"trait":"goalNet","x":1505,"y":60,"vis":false},{"bCoef":-12,"cMask":["ball","red","blue"],"trait":"goalNet","x":1505,"y":-60,"vis":false}],"segments":[{"v0":0,"v1":1,"trait":"ballArea","x":-1400},{"v0":2,"v1":3,"trait":"ballArea","x":-1400},{"v0":4,"v1":5,"trait":"ballArea","x":1400},{"v0":6,"v1":7,"trait":"ballArea","x":1400},{"v0":12,"v1":13,"trait":"goalNet","curve":-90,"cMask":["ball","red","blue"]},{"v0":13,"v1":14,"trait":"goalNet","cMask":["ball","red","blue"]},{"v0":14,"v1":15,"trait":"goalNet","curve":-90,"cMask":["ball","red","blue"]},{"v0":16,"v1":17,"trait":"goalNet","curve":90,"cMask":["ball","red","blue"]},{"v0":17,"v1":18,"trait":"goalNet","cMask":["ball","red","blue"]},{"v0":18,"v1":19,"trait":"goalNet","curve":90,"cMask":["ball","red","blue"]},{"v0":8,"v1":9,"trait":"kickOffBarrier"},{"v0":9,"v1":10,"trait":"kickOffBarrier","curve":180,"cGroup":["blueKO"]},{"v0":9,"v1":10,"trait":"kickOffBarrier","curve":-180,"cGroup":["redKO"]},{"v0":10,"v1":11,"trait":"kickOffBarrier"},{"vis":true,"v0":20,"v1":21,"color":"88aa88","bCoef":0,"curve":-300,"cMask":[]},{"curve":300,"vis":true,"color":"88aa88","bCoef":0,"v0":22,"v1":23,"cMask":[]},{"curve":0,"vis":false,"color":"000000","bCoef":-3,"cMask":["ball"],"trait":"goalNet","v0":24,"v1":25},{"curve":0,"vis":false,"color":"000000","bCoef":-3,"cMask":["ball"],"trait":"goalNet","v0":26,"v1":27,"x":-1410},{"curve":0,"vis":false,"color":"000000","bCoef":-3,"cMask":["ball"],"trait":"goalNet","v0":28,"v1":29,"x":1410},{"curve":0,"vis":false,"color":"000000","bCoef":-3,"cMask":["ball"],"trait":"goalNet","v0":30,"v1":31,"x":1410},{"vis":false,"bCoef":-12,"cMask":["ball","red","blue"],"trait":"gkback","v0":32,"v1":33,"x":-1505},{"vis":false,"bCoef":-12,"cMask":["ball","red","blue"],"trait":"goalNet","v0":34,"v1":35,"x":1505}],"goals":[{"p0":[-1400,150],"p1":[-1400,-150],"team":"red"},{"p0":[1400,150],"p1":[1400,-150],"team":"blue"}],"discs":[{"pos":[-1400,150],"trait":"goalPost","color":"FFCCCC"},{"pos":[-1400,-150],"trait":"goalPost","color":"FFCCCC"},{"pos":[1400,150],"trait":"goalPost","color":"CCCCFF"},{"pos":[1400,-150],"trait":"goalPost","color":"CCCCFF"}],"planes":[{"normal":[0,1],"dist":-640,"trait":"ballArea"},{"normal":[0,-1],"dist":-640,"trait":"ballArea"},{"normal":[0,1],"dist":-700,"bCoef":0.1},{"normal":[0,-1],"dist":-700,"bCoef":0.1},{"normal":[1,0],"dist":-1550,"bCoef":0.1},{"normal":[-1,0],"dist":-1550,"bCoef":0.1}],"traits":{"ballArea":{"vis":false,"bCoef":1,"cMask":["ball"]},"goalPost":{"radius":20,"invMass":0,"bCoef":12},"goalNet":{"vis":true,"bCoef":0.1,"cMask":["ball"]},"gkback":{},"kickOffBarrier":{"vis":false,"bCoef":0.1,"cGroup":["redKO","blueKO"],"cMask":["red","blue"]}},"ballPhysics":{"radius":8},"playerPhysics":{"kickStrength":6,"acceleration":0.15,"kickingAcceleration":0.12}}`,
   iceball: `{"name":"Iceball from HaxMaps","width":800,"height":350,"spawnDistance":350,"bg":{"type":"grass","width":700,"height":320,"kickOffRadius":80,"cornerRadius":0},"ballPhysics":{"damping":1},"vertexes":[{"x":-700,"y":320,"trait":"ballArea"},{"x":-700,"y":100,"trait":"ballArea"},{"x":-700,"y":-100,"trait":"ballArea"},{"x":-700,"y":-320,"trait":"ballArea"},{"x":700,"y":320,"trait":"ballArea"},{"x":700,"y":100,"trait":"ballArea"},{"x":700,"y":-100,"trait":"ballArea"},{"x":700,"y":-320,"trait":"ballArea"},{"x":0,"y":350,"trait":"kickOffBarrier"},{"x":0,"y":80,"trait":"kickOffBarrier"},{"x":0,"y":-80,"trait":"kickOffBarrier"},{"x":0,"y":-350,"trait":"kickOffBarrier"},{"x":-710,"y":-100,"trait":"goalNet"},{"x":-730,"y":-80,"trait":"goalNet"},{"x":-730,"y":80,"trait":"goalNet"},{"x":-710,"y":100,"trait":"goalNet"},{"x":710,"y":-100,"trait":"goalNet"},{"x":730,"y":-80,"trait":"goalNet"},{"x":730,"y":80,"trait":"goalNet"},{"x":710,"y":100,"trait":"goalNet"}],"segments":[{"v0":0,"v1":1,"trait":"ballArea"},{"v0":2,"v1":3,"trait":"ballArea"},{"v0":4,"v1":5,"trait":"ballArea"},{"v0":6,"v1":7,"trait":"ballArea"},{"v0":12,"v1":13,"trait":"goalNet","curve":-90},{"v0":13,"v1":14,"trait":"goalNet"},{"v0":14,"v1":15,"trait":"goalNet","curve":-90},{"v0":16,"v1":17,"trait":"goalNet","curve":90},{"v0":17,"v1":18,"trait":"goalNet"},{"v0":18,"v1":19,"trait":"goalNet","curve":90},{"v0":8,"v1":9,"trait":"kickOffBarrier"},{"v0":9,"v1":10,"trait":"kickOffBarrier","curve":180,"cGroup":["blueKO"]},{"v0":9,"v1":10,"trait":"kickOffBarrier","curve":-180,"cGroup":["redKO"]},{"v0":10,"v1":11,"trait":"kickOffBarrier"}],"goals":[{"p0":[-700,100],"p1":[-700,-100],"team":"red"},{"p0":[700,100],"p1":[700,-100],"team":"blue"}],"discs":[{"pos":[-700,100],"trait":"goalPost","color":"FFCCCC"},{"pos":[-700,-100],"trait":"goalPost","color":"FFCCCC"},{"pos":[700,100],"trait":"goalPost","color":"CCCCFF"},{"pos":[700,-100],"trait":"goalPost","color":"CCCCFF"}],"planes":[{"normal":[0,1],"dist":-320,"trait":"ballArea"},{"normal":[0,-1],"dist":-320,"trait":"ballArea"},{"normal":[0,1],"dist":-350,"bCoef":0.1},{"normal":[0,-1],"dist":-350,"bCoef":0.1},{"normal":[1,0],"dist":-800,"bCoef":0.1},{"normal":[-1,0],"dist":-800,"bCoef":0.1}],"traits":{"ballArea":{"vis":false,"bCoef":1,"cMask":["ball"]},"goalPost":{"radius":8,"invMass":0,"bCoef":0.5},"goalNet":{"vis":true,"bCoef":0.1,"cMask":["ball"]},"kickOffBarrier":{"vis":false,"bCoef":0.1,"cGroup":["redKO","blueKO"],"cMask":["red","blue"]}}}`
 });
+;// CONCATENATED MODULE: ./src/admin.js
+
+
+
+/* harmony default export */ const admin = ({
+  onPlayerAdminChange: function (player, byPlayer) {
+    const _player = players.findPlayerById(player.id);
+
+    _player.admin = player.admin;
+  },
+  listPlayersAndIds: function (player) {
+    if (player.admin) {
+      let stringList = "|| ";
+      room_playerList.forEach(_player => {
+        stringList += `${_player.name} : ${_player.id} || `;
+      });
+      room_room.sendAnnouncement(stringList, player.id, COLORS.WARNING, "small-bold", 0);
+    }
+  },
+  kickPlayer: function (byPlayer, targetId, ban = false, reason = null) {
+    if (byPlayer.admin) {
+      let _reason = reason ? reason : "Unspecified.";
+
+      if (!targetId || targetId === NaN) {
+        notice("DEFAULT", ["Invalid Target ID"], byPlayer, COLORS.DANGER);
+      } else {
+        if (byPlayer.id === targetId) {
+          notice("DEFAULT", ["You can't kick yourself!"], byPlayer, COLORS.DANGER);
+        } else {
+          room_room.kickPlayer(targetId, _reason, ban);
+        }
+      }
+    }
+  }
+});
 ;// CONCATENATED MODULE: ./src/chat.js
 
 
 
 
+
+
+const kickPlayer = function (byPlayer, message, ban) {
+  let _arguments = message.replace(/\s\s+/g, " ").split(" ");
+
+  let reason = "";
+
+  for (let i = 2; i < _arguments.length; i++) {
+    reason += _arguments[i] + " ";
+  }
+
+  if (reason === "") reason = null;
+  admin.kickPlayer(byPlayer, parseInt(_arguments[1]), ban, reason);
+};
+
 const processChat = (player, message) => {
   const _player = players.findPlayerById(player.id);
 
   const _message = message.trim();
+
+  let forChat = true;
 
   if (_message === "pl") {
     const {
@@ -1330,8 +1452,42 @@ const processChat = (player, message) => {
   }
 
   if (["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"].includes(_message)) {
+    forChat = roomStates.teamSelecting === 0 ? true : false;
     game.selectPlayer(parseInt(_message), _player.team);
   }
+
+  if (_message.startsWith("!")) {
+    forChat = false;
+
+    if (_message === "!tr") {
+      _player.language = "tr";
+      notice("LANGUAGE_CHANGE", [], _player, COLORS.SUCCESS);
+    }
+
+    if (_message === "!en") {
+      _player.language = "en";
+      notice("LANGUAGE_CHANGE", [], _player, COLORS.SUCCESS);
+    }
+
+    if (_message === "!players") {
+      // lists players and their ids
+      admin.listPlayersAndIds(_player);
+    }
+
+    if (_message.startsWith("!kick ")) {
+      kickPlayer(_player, _message, false);
+    }
+
+    if (_message.startsWith("!ban ")) {
+      kickPlayer(_player, _message, true);
+    }
+  }
+
+  if (forChat) {
+    room_room.sendAnnouncement(`${player.name}: ${_message}`, null, COLORS.WHITE, null, 1);
+  }
+
+  return false;
 };
 
 
@@ -1341,12 +1497,13 @@ const processChat = (player, message) => {
 
 
 
+
  // Create room variable to use in exports.
 
 let room_room; // Rooms properties when initializing.
 
 const ROOM_INIT_PROPERTIES = {
-  token: "thr1.AAAAAGD-wte33xUVAb8uKQ.Pa0YgdrI6ns",
+  token: "thr1.AAAAAGD_GsQAH-bkeoCm3g.PpqQKPfg6Pg",
   // Token is REQUIRED to have this app to skip the recapctha!
   roomName: `🤡 ~JOKERBALL~ [v4] [7/24] :)`,
   maxPlayers: 15,
@@ -1369,7 +1526,14 @@ const SYSTEM = {
   ONE_TAB: false,
   PEOPLE_COUNT_BY_TEAM: 5,
   GAME_TIME_LIMIT: 0,
-  GAME_SCORE_LIMIT: 2
+  GAME_SCORE_LIMIT: 2,
+  AFK_WARN_TICK: 48000,
+  // in tick
+  AFK_KICK_TICK: 90000,
+  // in tick
+  POSITION_TICK_FORCE: 960,
+  CHOOSE_PLAYER_TIMEOUT: 800000 // in ms
+
 };
 
 const makeSystemDefault = () => {
@@ -1378,6 +1542,10 @@ const makeSystemDefault = () => {
   SYSTEM.PEOPLE_COUNT_BY_TEAM = 4;
   SYSTEM.GAME_TIME_LIMIT = 2;
   SYSTEM.GAME_SCORE_LIMIT = 3;
+  SYSTEM.AFK_WARN_TICK = 480;
+  SYSTEM.AFK_KICK_TICK = 900;
+  SYSTEM.POSITION_TICK_FORCE = 960;
+  SYSTEM.CHOOSE_PLAYER_TIMEOUT = 8000;
 };
 
 const ADMIN = {
@@ -1408,6 +1576,7 @@ const roomStates = {
   gameLocked: false,
   gamePhase: "idle",
   gameTick: 0,
+  positionTick: 0,
   lastTouch: null,
   // player id 
   kickCount: 0,
@@ -1441,7 +1610,6 @@ window.onHBLoaded = () => {
 
   room_room.onPlayerJoin = player => {
     players.onPlayerJoin(player);
-    room_room.setPlayerAdmin(player.id, true);
   };
 
   room_room.onPlayerLeave = player => {
@@ -1456,6 +1624,10 @@ window.onHBLoaded = () => {
     game.onGameStop();
   };
 
+  room_room.onPlayerAdminChange = (player, byPlayer) => {
+    admin.onPlayerAdminChange(player, byPlayer);
+  };
+
   room_room.onTeamVictory = scores => {
     game.onTeamVictory(scores);
   };
@@ -1465,17 +1637,21 @@ window.onHBLoaded = () => {
   room_room.onPositionsReset = () => {
     console.log("res");
     roomStates.positionId += 1;
+    roomStates.positionTick = 0;
     players.onPositionsReset();
   };
 
   room_room.onGameTick = () => {
     players.assignPosition();
+    game.checkAfksInGame();
+    game.forceStart();
     strangenessUsage.filter(pre => pre.tick === roomStates.gameTick && pre.positionId === roomStates.positionId).forEach(pre => pre.invoke());
     game.checkBallInTheField();
     game.checkIfPlayersFrozen();
     game.checkIfPlayersSelfFrozen();
     game.checkIfPlayersAreSuperman();
     game.checkTimeTravelBall();
+    roomStates.positionTick += 1;
     roomStates.gameTick += 1;
   };
 
@@ -1490,11 +1666,11 @@ window.onHBLoaded = () => {
 
   room_room.onPlayerActivity = player => {
     game.useSpeedBoost(player);
+    game.onPlayerActivity(player);
   };
 
   room_room.onPlayerChat = (player, message) => {
-    processChat(player, message);
-    return true;
+    return processChat(player, message);
   };
 }; //** MAIN **//
 // Initialize headless room.

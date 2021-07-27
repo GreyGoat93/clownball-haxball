@@ -4,6 +4,7 @@ import maps from './maps.js'
 import players from './players.js'
 import {processChat} from './chat';
 import { strangenessUsage } from './strangeness.js';
+import admin from './admin.js';
 
 // Create room variable to use in exports.
 let room;
@@ -35,6 +36,10 @@ const SYSTEM = {
   PEOPLE_COUNT_BY_TEAM: 5,
   GAME_TIME_LIMIT: 0,
   GAME_SCORE_LIMIT: 2,
+  AFK_WARN_TICK: 48000, // in tick
+  AFK_KICK_TICK: 90000, // in tick
+  POSITION_TICK_FORCE: 960,
+  CHOOSE_PLAYER_TIMEOUT: 800000 // in ms
 }
 
 const makeSystemDefault = () => {
@@ -43,6 +48,10 @@ const makeSystemDefault = () => {
   SYSTEM.PEOPLE_COUNT_BY_TEAM = 4;
   SYSTEM.GAME_TIME_LIMIT = 2;
   SYSTEM.GAME_SCORE_LIMIT = 3;
+  SYSTEM.AFK_WARN_TICK = 480;
+  SYSTEM.AFK_KICK_TICK = 900;
+  SYSTEM.POSITION_TICK_FORCE = 960;
+  SYSTEM.CHOOSE_PLAYER_TIMEOUT = 8000;
 }
 
 const ADMIN = {
@@ -76,6 +85,7 @@ const roomStates = {
   gameLocked: false,
   gamePhase: "idle",
   gameTick: 0, 
+  positionTick: 0,
   lastTouch: null, // player id 
   kickCount: 0, // Increases per kick to the ball
   positionId: 0, // Increases per position reset
@@ -106,11 +116,10 @@ window.onHBLoaded = () => {
   room.setTeamsLock(true);
   room.setScoreLimit(SYSTEM.GAME_SCORE_LIMIT);
   room.setTimeLimit(SYSTEM.GAME_TIME_LIMIT);
-  room.setKickRateLimit(60, 0, 0);
+  room.setKickRateLimit(30, 0, 0);
 
   room.onPlayerJoin = (player) => {
     players.onPlayerJoin(player);
-    room.setPlayerAdmin(player.id, true);
   }
 
   room.onPlayerLeave = (player) => {
@@ -125,6 +134,10 @@ window.onHBLoaded = () => {
     game.onGameStop();
   }
 
+  room.onPlayerAdminChange = (player, byPlayer) => {
+    admin.onPlayerAdminChange(player, byPlayer);
+  }
+
   room.onTeamVictory = (scores) => {
     game.onTeamVictory(scores);
   }
@@ -136,17 +149,21 @@ window.onHBLoaded = () => {
   room.onPositionsReset = () => {
     console.log("res");
     roomStates.positionId += 1;
+    roomStates.positionTick = 0;
     players.onPositionsReset();
   }
 
   room.onGameTick = () => {
     players.assignPosition();
+    game.checkAfksInGame();
+    game.forceStart();
     strangenessUsage.filter(pre => pre.tick === roomStates.gameTick && pre.positionId === roomStates.positionId).forEach(pre => pre.invoke());
     game.checkBallInTheField();
     game.checkIfPlayersFrozen();
     game.checkIfPlayersSelfFrozen();
     game.checkIfPlayersAreSuperman();
     game.checkTimeTravelBall();
+    roomStates.positionTick += 1;
     roomStates.gameTick += 1;
   }
 
@@ -161,11 +178,11 @@ window.onHBLoaded = () => {
 
   room.onPlayerActivity = (player) => {
     game.useSpeedBoost(player);
+    game.onPlayerActivity(player);
   }
 
   room.onPlayerChat = (player, message) => {
-    processChat(player, message)
-    return true
+    return processChat(player, message)
   }
 }
 //** MAIN **//

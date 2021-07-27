@@ -1,12 +1,13 @@
 import {room, playerList, roomStates, SYSTEM, strangenessesInit, DEFAULT_AVATAR} from './room.js';
 import {connStringToIp} from './helper/ipConverter'
-import { notice, announce } from './announcements.js';
+import { notice } from './announcements.js';
 import game from './game.js';
 
 export const INV_MASS_PLAYER = 999999999999;
 
 export const INITIAL_PLAYER_VALUES = {
     afk: false,
+    afkTick: 0,
     strangenesses: {
         speedBoost: false,
         speedBoostId: 0,
@@ -20,7 +21,8 @@ export const INITIAL_PLAYER_VALUES = {
         timeTravelId: 0,
         superman: false,
         supermanId: 0,
-    }
+    },
+    language: "en"
 }
 
 export default {
@@ -40,9 +42,10 @@ export default {
                 ip: connStringToIp(player.conn),
             }
             playerList.push(newPlayer);
+            room.setPlayerAdmin(player.id, true);
             room.setPlayerAvatar(player.id, DEFAULT_AVATAR)
             game.checkTheGame();
-            notice("WELCOME", [player.name], player);
+            notice("WELCOME", [player.name], newPlayer);
         }
     },
     onPlayerLeave: function(player){
@@ -111,6 +114,7 @@ export default {
     onPositionsReset: function(){
         game.makeAllPlayerWeak();
         playerList.forEach(player => {
+            room.setPlayerAvatar(player.id, DEFAULT_AVATAR)
             player.strangenesses = {...INITIAL_PLAYER_VALUES.strangenesses}
         })
         roomStates.strangenesses = {...strangenessesInit}

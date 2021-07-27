@@ -1,10 +1,7 @@
 import {room, playerList, roomStates, SYSTEM, strangenessesInit, BOUNDS} from './room.js';
-import {announceLouder, announceTeams, COLORS} from './announcements';
+import {announceLouder, announceTeams, COLORS, notice} from './announcements';
 import { strangenesses, strangenessUsage } from './strangeness.js';
-import { getAngleBetweenTwoDiscs } from './helper/math';
 import players, { INITIAL_PLAYER_VALUES, INV_MASS_PLAYER } from './players.js'
-
-let sexxx = 0;
 
 export default {
     checkTheGame: function(){
@@ -157,7 +154,7 @@ export default {
                 room.setPlayerTeam(playablesSpec[0].id, 1);
             }
             room.pauseGame(false);
-        }, 10000000)
+        }, SYSTEM.CHOOSE_PLAYER_TIMEOUT)
     },
     selectPlayer: function(index, selectorsTeam){
         const playables = players.findPlayables();
@@ -187,6 +184,35 @@ export default {
             }
         }
     },
+    forceStart(){
+        if(roomStates.positionTick === SYSTEM.POSITION_TICK_FORCE){
+            let {x, y, xspeed, yspeed} = room.getDiscProperties(0);
+            if(x === 0 && y === 0){
+                room.setDiscProperties(0, {xspeed: xspeed + 0.000001, yspeed: yspeed + 0.000001})
+                announceLouder("NOONE_STARTED", []);
+            }
+        }
+    },
+    onPlayerActivity(player){
+        const _player = players.findPlayerById(player.id);
+        _player.afkTick = 0;
+    },
+    checkAfksInGame(){
+        playerList.filter(pre => pre.team !== 0).forEach(player => {
+            player.afkTick += 1;
+            if(player.afkTick === SYSTEM.AFK_WARN_TICK){
+                notice("LEAVE_BEING_AFK", [], player);
+            }
+            if(player.afkTick === SYSTEM.AFK_KICK_TICK){
+                room.kickPlayer(player.id, "AFK!", false);
+            }
+        })
+    },
+    resetAfksInGame(){
+        playerList.forEach(player => {
+            player.afkTick = 0;
+        });
+    },
     onGameStart: function(){
         roomStates.gameId === 0 && room.stopGame();
         this.resetOnGameStart();
@@ -205,10 +231,11 @@ export default {
         roomStates.gameLocked = true;
         roomStates.gamePhase = "choosing";
         roomStates.gameTick = 0;
+        roomStates.positionTick = 0;
         roomStates.positionId += 0;
-        sexxx = 0;
         strangenessUsage = [];
         playerList.forEach(player => player.strangenesses = {...INITIAL_PLAYER_VALUES.strangenesses})
+        this.resetAfksInGame();
         roomStates.strangenesses = {...strangenessesInit};
         this.checkTheGame();
     },
@@ -292,7 +319,6 @@ export default {
             players.findPlayersByTeam(teamId).forEach(player => {
                 room.setPlayerDiscProperties(player.id, {x: player.strangenesses.frozenCoordinates?.x, y: player.strangenesses.frozenCoordinates?.y, xspeed: 0, yspeed: 0});
             })
-            sexxx += 1;
         }
 
         if(roomStates.strangenesses.makeEnemiesFrozenRed){

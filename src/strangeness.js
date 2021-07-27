@@ -226,7 +226,7 @@ export const strangenesses = [
             room.setPlayerAvatar(_player.id, "🚀")
             const speedBoostId = _player.strangenesses.speedBoostId += 1;
             _player.strangenesses.speedBoost = true;
-            notice("SPEED_BOOST", [], _player.id);
+            notice("SPEED_BOOST", [], _player);
             strangenessUsage.push({
                 tick: roomStates.gameTick + 300,
                 positionId: roomStates.positionId,
