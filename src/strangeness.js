@@ -1,8 +1,9 @@
-import { DEFAULT_AVATAR, playerList, room, roomStates, SYSTEM } from "./room"
+import { DEFAULT_AVATAR, playerList, room, roomStates, SPEED, SYSTEM } from "./room"
 import { generateRandomNumber } from "./helper/randomNumber";
 import players from "./players";
 import { notice } from "./announcements";
 import game from "./game";
+import { shuffle } from "./helper/shuffle";
 
 export let strangenessUsage = [
     
@@ -414,6 +415,43 @@ export const strangenesses = [
                     }
                 }
             })
+        }
+    },
+    {
+        id: "FLYING_SWAP",
+        invoke(playerKicked){
+            const blueTeamIds = players.findPlayersByTeam(2).map(pre => pre.id);
+            const blueTeam = shuffle(blueTeamIds);
+            players.findPlayersByTeam(1).forEach((player, index) => {
+                let {x: rx, y: ry} = room.getPlayerDiscProperties(player.id);
+                let {x: bx, y: by} = room.getPlayerDiscProperties(blueTeam[index]);
+                let dx = rx - bx;
+                let dy = ry - by;
+                let distance = Math.sqrt(dx*dx+dy*dy)
+                let multiplier = Math.abs((7/235) * distance + (5/47));
+                console.log(multiplier);
+                let speed = multiplier / distance;
+                room.setPlayerDiscProperties(player.id, {xspeed: dx * speed * -1, yspeed: dy * speed * -1});
+                room.setPlayerDiscProperties(blueTeam[index], {xspeed: dx * speed, yspeed: dy * speed});
+            })
+        }
+    },
+    {
+        id: "MAGNET",
+        invoke(playerKicked){
+            const _player = players.findPlayerById(playerKicked.id);
+            _player.strangenesses.magnet = true;
+            let magnetId = _player.strangenesses.magnetId += 1;
+            strangenessUsage.push({
+                tick: roomStates.gameTick + 240,
+                positionId: roomStates.positionId,
+                invoke(){
+                    if(magnetId === _player.strangenesses.magnetId){
+                        _player.strangenesses.magnet = false;
+                        room.setDiscProperties(0, {xgravity: 0, ygravity: 0});
+                    }
+                }
+            });
         }
     }
 ]

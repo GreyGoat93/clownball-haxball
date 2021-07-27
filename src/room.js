@@ -9,6 +9,8 @@ import admin from './admin.js';
 // Create room variable to use in exports.
 let room;
 
+export const SPEED = 25
+
 // Rooms properties when initializing.
 const ROOM_INIT_PROPERTIES = {
   token: process.env.TOKEN, // Token is REQUIRED to have this app to skip the recapctha!
@@ -164,6 +166,7 @@ window.onHBLoaded = () => {
     game.checkIfPlayersFrozen();
     game.checkIfPlayersSelfFrozen();
     game.checkIfPlayersAreSuperman();
+    game.checkIfPlayersMagnet();
     game.checkTimeTravelBall();
     roomStates.positionTick += 1;
     roomStates.gameTick += 1;

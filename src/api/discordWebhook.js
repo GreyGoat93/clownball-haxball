@@ -3,9 +3,9 @@ const headers = {
     'Content-Type': 'application/json'
 };
 
-const CHAT_WEBHOOK_URL = "https://discord.com/api/webhooks/869558911286530120/J3O2B_zQdZw0hkZJMGDd2NTITrUjObe6V3lYscFDdZDIXDG4fPySkFCzVrFF5HpYPS7n";
-const VISITS_WEBHOOK_URL = "https://discord.com/api/webhooks/869568935010385960/jZBThDVc4KUxbDzvtr5w4sjvgJ5Eqd0Uw-tZjLcyJwF09EblJnHRuZQ8VfSVxmOkKmbF";
-const MATCHES_WEBHOOK_URL = "https://discord.com/api/webhooks/869579775117754468/OjT0vpXim3a-Pf6vy4i7PYFkzKxe4TzmCB6e9MhVtdw-fKXd7IVAvhk-9fudqFrs0Aqz";
+const CHAT_WEBHOOK_URL = "bok"//"https://discord.com/api/webhooks/869558911286530120/J3O2B_zQdZw0hkZJMGDd2NTITrUjObe6V3lYscFDdZDIXDG4fPySkFCzVrFF5HpYPS7n";
+const VISITS_WEBHOOK_URL = "bok"//"https://discord.com/api/webhooks/869568935010385960/jZBThDVc4KUxbDzvtr5w4sjvgJ5Eqd0Uw-tZjLcyJwF09EblJnHRuZQ8VfSVxmOkKmbF";
+const MATCHES_WEBHOOK_URL = "bok"//"https://discord.com/api/webhooks/869579775117754468/OjT0vpXim3a-Pf6vy4i7PYFkzKxe4TzmCB6e9MhVtdw-fKXd7IVAvhk-9fudqFrs0Aqz";
 
 export default {
     chat: function(fields, avatar_url = null){

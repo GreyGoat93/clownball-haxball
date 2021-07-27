@@ -8,6 +8,8 @@ import { getDateWithTime } from './helper/time.js';
 
 export const INV_MASS_PLAYER = 999999999999;
 
+const availableLanguages = ["en", "tr"];
+
 export const INITIAL_PLAYER_VALUES = {
     afk: false,
     afkTick: 0,
@@ -25,6 +27,8 @@ export const INITIAL_PLAYER_VALUES = {
         timeTravelId: 0,
         superman: false,
         supermanId: 0,
+        magnet: false,
+        magnetId: 0,
     },
     language: "en",
     country: "XX",

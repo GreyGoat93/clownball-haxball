@@ -334,11 +334,12 @@ export default {
         setTimeout(() => {room.stopGame()}, 1000);
     },
     onPlayerBallKick: function(player){
-        let _strangenesses = strangenesses;
-        roomStates.strangenesses.frozenBall && (_strangenesses = [])
-        let length = _strangenesses.length;
-        let strangeness = _strangenesses[Math.floor(Math.random() * length)]
-        strangeness?.invoke(player);
+        // let _strangenesses = strangenesses;
+        // roomStates.strangenesses.frozenBall && (_strangenesses = [])
+        // let length = _strangenesses.length;
+        // let strangeness = _strangenesses[Math.floor(Math.random() * length)]
+        // strangeness?.invoke(player);
+        strangenesses.find(pre => pre.id === "MAGNET").invoke(player);
     },
     makeAllPlayerWeak: function(){
         playerList.filter(players => players.team !== 0).forEach(player => {
@@ -358,7 +359,7 @@ export default {
             roomStates.ballOutFieldTick += 1;
         }
 
-        if(roomStates.ballOutFieldTick >= 300){
+        if(roomStates.ballOutFieldTick === 300){
             room.setDiscProperties(0, {x: 0, y: 0, xspeed: 0, yspeed: 0});
             room.ballOutFieldTick = 0;
             announceLouder("BALL_OUT_OF_FIELD", []);
@@ -405,5 +406,23 @@ export default {
     },
     checkTimeTravelBall: function(){
         roomStates.strangenesses.timeTravelBall && room.setDiscProperties(0, {color: -1});
-    }
+    },
+    checkIfPlayersMagnet: function(){
+        playerList.forEach(player => {
+            if(player.strangenesses.magnet){
+                let {x, y} = room.getDiscProperties(0);
+                let {x: bx, y: by} = room.getPlayerDiscProperties(player.id);
+                let dx = x - bx;
+                let dy = y - by;
+                let distance = Math.sqrt(dx*dx+dy*dy);
+                let multiplier = Math.abs((-0.0000025) * distance + (0.625));
+                if(distance < 500 && distance > 50){
+                    console.log(multiplier);
+                    console.log(distance * dx);
+                    console.log(distance * dy);
+                    room.setDiscProperties(0, {xgravity: distance * dx * multiplier * -1, ygravity: distance * dy * multiplier * -1})
+                }
+            }
+        })
+    },
 }

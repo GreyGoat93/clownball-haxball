@@ -43,6 +43,7 @@ __webpack_require__.d(__webpack_exports__, {
   "ADMIN": () => (/* binding */ ADMIN),
   "BOUNDS": () => (/* binding */ BOUNDS),
   "DEFAULT_AVATAR": () => (/* binding */ DEFAULT_AVATAR),
+  "SPEED": () => (/* binding */ SPEED),
   "SYSTEM": () => (/* binding */ SYSTEM),
   "makeSystemDefault": () => (/* binding */ makeSystemDefault),
   "playerList": () => (/* binding */ playerList),
@@ -260,9 +261,12 @@ const headers = {
   'Accept': 'application/json',
   'Content-Type': 'application/json'
 };
-const CHAT_WEBHOOK_URL = "https://discord.com/api/webhooks/869558911286530120/J3O2B_zQdZw0hkZJMGDd2NTITrUjObe6V3lYscFDdZDIXDG4fPySkFCzVrFF5HpYPS7n";
-const VISITS_WEBHOOK_URL = "https://discord.com/api/webhooks/869568935010385960/jZBThDVc4KUxbDzvtr5w4sjvgJ5Eqd0Uw-tZjLcyJwF09EblJnHRuZQ8VfSVxmOkKmbF";
-const MATCHES_WEBHOOK_URL = "https://discord.com/api/webhooks/869579775117754468/OjT0vpXim3a-Pf6vy4i7PYFkzKxe4TzmCB6e9MhVtdw-fKXd7IVAvhk-9fudqFrs0Aqz";
+const CHAT_WEBHOOK_URL = "bok"; //"https://discord.com/api/webhooks/869558911286530120/J3O2B_zQdZw0hkZJMGDd2NTITrUjObe6V3lYscFDdZDIXDG4fPySkFCzVrFF5HpYPS7n";
+
+const VISITS_WEBHOOK_URL = "bok"; //"https://discord.com/api/webhooks/869568935010385960/jZBThDVc4KUxbDzvtr5w4sjvgJ5Eqd0Uw-tZjLcyJwF09EblJnHRuZQ8VfSVxmOkKmbF";
+
+const MATCHES_WEBHOOK_URL = "bok"; //"https://discord.com/api/webhooks/869579775117754468/OjT0vpXim3a-Pf6vy4i7PYFkzKxe4TzmCB6e9MhVtdw-fKXd7IVAvhk-9fudqFrs0Aqz";
+
 /* harmony default export */ const discordWebhook = ({
   chat: function (fields, avatar_url = null) {
     fetch(CHAT_WEBHOOK_URL, {
@@ -364,6 +368,7 @@ const getDateWithTime = function () {
 
 
 const INV_MASS_PLAYER = 999999999999;
+const availableLanguages = (/* unused pure expression or super */ null && (["en", "tr"]));
 const INITIAL_PLAYER_VALUES = {
   afk: false,
   afkTick: 0,
@@ -380,7 +385,9 @@ const INITIAL_PLAYER_VALUES = {
     timeTravelCoordinates: null,
     timeTravelId: 0,
     superman: false,
-    supermanId: 0
+    supermanId: 0,
+    magnet: false,
+    magnetId: 0
   },
   language: "en",
   country: "XX",
@@ -543,7 +550,17 @@ const notifyEnterOrLeave = (player, type) => {
     });
   }
 });
+;// CONCATENATED MODULE: ./src/helper/shuffle.js
+const shuffle = function (array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+
+  return array;
+};
 ;// CONCATENATED MODULE: ./src/strangeness.js
+
 
 
 
@@ -1130,6 +1147,63 @@ const strangenesses = [{
     });
   }
 
+}, {
+  id: "FLYING_SWAP",
+
+  invoke(playerKicked) {
+    const blueTeamIds = players.findPlayersByTeam(2).map(pre => pre.id);
+    const blueTeam = shuffle(blueTeamIds);
+    players.findPlayersByTeam(1).forEach((player, index) => {
+      let {
+        x: rx,
+        y: ry
+      } = room.getPlayerDiscProperties(player.id);
+      let {
+        x: bx,
+        y: by
+      } = room.getPlayerDiscProperties(blueTeam[index]);
+      let dx = rx - bx;
+      let dy = ry - by;
+      let distance = Math.sqrt(dx * dx + dy * dy);
+      let multiplier = Math.abs(7 / 235 * distance + 5 / 47);
+      console.log(multiplier);
+      let speed = multiplier / distance;
+      room.setPlayerDiscProperties(player.id, {
+        xspeed: dx * speed * -1,
+        yspeed: dy * speed * -1
+      });
+      room.setPlayerDiscProperties(blueTeam[index], {
+        xspeed: dx * speed,
+        yspeed: dy * speed
+      });
+    });
+  }
+
+}, {
+  id: "MAGNET",
+
+  invoke(playerKicked) {
+    const _player = players.findPlayerById(playerKicked.id);
+
+    _player.strangenesses.magnet = true;
+    let magnetId = _player.strangenesses.magnetId += 1;
+    strangenessUsage.push({
+      tick: roomStates.gameTick + 240,
+      positionId: roomStates.positionId,
+
+      invoke() {
+        if (magnetId === _player.strangenesses.magnetId) {
+          _player.strangenesses.magnet = false;
+          room.setDiscProperties(0, {
+            xgravity: 0,
+            ygravity: 0
+          });
+        }
+      }
+
+    });
+  }
+
 }];
 ;// CONCATENATED MODULE: ./src/game.js
 
@@ -1499,13 +1573,12 @@ const notifyGoal = teamId => {
     }, 1000);
   },
   onPlayerBallKick: function (player) {
-    let _strangenesses = strangenesses;
-    roomStates.strangenesses.frozenBall && (_strangenesses = []);
-    let length = _strangenesses.length;
-
-    let strangeness = _strangenesses[Math.floor(Math.random() * length)];
-
-    strangeness === null || strangeness === void 0 ? void 0 : strangeness.invoke(player);
+    // let _strangenesses = strangenesses;
+    // roomStates.strangenesses.frozenBall && (_strangenesses = [])
+    // let length = _strangenesses.length;
+    // let strangeness = _strangenesses[Math.floor(Math.random() * length)]
+    // strangeness?.invoke(player);
+    strangenesses.find(pre => pre.id === "MAGNET").invoke(player);
   },
   makeAllPlayerWeak: function () {
     playerList.filter(players => players.team !== 0).forEach(player => {
@@ -1532,7 +1605,7 @@ const notifyGoal = teamId => {
       roomStates.ballOutFieldTick += 1;
     }
 
-    if (roomStates.ballOutFieldTick >= 300) {
+    if (roomStates.ballOutFieldTick === 300) {
       room.setDiscProperties(0, {
         x: 0,
         y: 0,
@@ -1610,6 +1683,34 @@ const notifyGoal = teamId => {
   checkTimeTravelBall: function () {
     roomStates.strangenesses.timeTravelBall && room.setDiscProperties(0, {
       color: -1
+    });
+  },
+  checkIfPlayersMagnet: function () {
+    playerList.forEach(player => {
+      if (player.strangenesses.magnet) {
+        let {
+          x,
+          y
+        } = room.getDiscProperties(0);
+        let {
+          x: bx,
+          y: by
+        } = room.getPlayerDiscProperties(player.id);
+        let dx = x - bx;
+        let dy = y - by;
+        let distance = Math.sqrt(dx * dx + dy * dy);
+        let multiplier = Math.abs(-0.0000025 * distance + 0.625);
+
+        if (distance < 500 && distance > 50) {
+          console.log(multiplier);
+          console.log(distance * dx);
+          console.log(distance * dy);
+          room.setDiscProperties(0, {
+            xgravity: distance * dx * multiplier * -1,
+            ygravity: distance * dy * multiplier * -1
+          });
+        }
+      }
     });
   }
 });
@@ -1809,10 +1910,11 @@ const processChat = (player, message) => {
 
  // Create room variable to use in exports.
 
-let room; // Rooms properties when initializing.
+let room;
+const SPEED = 25; // Rooms properties when initializing.
 
 const ROOM_INIT_PROPERTIES = {
-  token: "thr1.AAAAAGD__iXjSvVWCQoCYA.MB4YZjvbMDc",
+  token: "thr1.AAAAAGEAK_yAnjlwdK4UbA.RzX4-NqXl1M",
   // Token is REQUIRED to have this app to skip the recapctha!
   roomName: `🤡 ~JOKERBALL~ [v4] [7/24] :)`,
   maxPlayers: 15,
@@ -1962,6 +2064,7 @@ window.onHBLoaded = () => {
     game.checkIfPlayersFrozen();
     game.checkIfPlayersSelfFrozen();
     game.checkIfPlayersAreSuperman();
+    game.checkIfPlayersMagnet();
     game.checkTimeTravelBall();
     roomStates.positionTick += 1;
     roomStates.gameTick += 1;
