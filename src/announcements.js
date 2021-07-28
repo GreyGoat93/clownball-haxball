@@ -69,6 +69,24 @@ const announcements = {
         en: ")0$, has been muted for forbidden chat behaviors.",
         tr: ")0$, uygunsuz mesajlaşmadan dolayı susturuldu.",
     },
+    BECAME_AFK: {
+        inputCount: 1,
+        color: COLORS.WARNING,
+        en: ")0$, is now AFK.",
+        tr: ")0$, şimdi AFK.",
+    },
+    BECAME_NOT_AFK: {
+        inputCount: 1,
+        color: COLORS.WARNING,
+        en: ")0$, is not AFK now.",
+        tr: ")0$, şimdi AFK değil.",
+    },
+    YOU_CANT_BE_AFK: {
+        inputCount: 0,
+        color: COLORS.DANGER,
+        en: "You can't become AFK more than one in 1 minute.",
+        tr: "1 dakika içinde birden fazla AFK olamazsın.",
+    },
     BALL_OUT_OF_FIELD: {
         inputCount: 0,
         color: COLORS.WARNING,

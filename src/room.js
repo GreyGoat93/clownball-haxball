@@ -83,6 +83,8 @@ export const strangenessesInit = {
 
 // Room states.
 const roomStates = {
+  discordNoticeBug: true,
+  LUS: [null, null, null, null, null], // Last Used Strangenesses
   ballOutFieldTick: 0,
   gameId: 0,
   gameStarted: false,
@@ -169,6 +171,7 @@ window.onHBLoaded = () => {
     game.checkIfPlayersMagnet();
     game.checkTimeTravelBall();
     game.checkIfPlayerDiamondFist();
+    roomStates.discordNoticeBug && game.checkBugs();
     roomStates.positionTick += 1;
     roomStates.gameTick += 1;
   }
@@ -196,6 +199,14 @@ window.onHBLoaded = () => {
 setInterval(() => {
   playerList.forEach(player => player.spamCount = 0);
 }, 5000);
+
+setInterval(() => {
+  roomStates.discordNoticeBug = true;
+}, 10000)
+
+setInterval(() => {
+  playerList.forEach(player => player.canBeAfkAgain = true);
+}, 60000)
 
 // Initialize headless room.
 if (typeof window.HBInit === 'function') {

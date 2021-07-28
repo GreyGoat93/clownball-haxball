@@ -81,6 +81,9 @@ const processChat = (player, message) => {
         if(_message.startsWith("!ban ")){
             kickPlayer(_player, _message, true);
         }
+        if(_message === "!afk"){
+            _player?.manageAfkStatus();
+        }
     }
 
     if(forChat){

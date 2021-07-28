@@ -1,6 +1,6 @@
 import {room, playerList, roomStates, SYSTEM, strangenessesInit, DEFAULT_AVATAR} from './room.js';
 import {connStringToIp} from './helper/ipConverter'
-import { notice } from './announcements.js';
+import { announce, notice } from './announcements.js';
 import game from './game.js';
 import country from './api/country.js';
 import discordWebhook from './api/discordWebhook.js';
@@ -12,6 +12,7 @@ const availableLanguages = ["en", "tr"];
 
 export const INITIAL_PLAYER_VALUES = {
     afk: false,
+    canBeAfkAgain: true,
     afkTick: 0,
     hiddenAdmin: false,
     strangenesses: {
@@ -38,6 +39,23 @@ export const INITIAL_PLAYER_VALUES = {
     country: "XX",
     spamCount: 0,
     isMuted: false,
+    manageAfkStatus: function(){
+        let isAfk = this.afk;
+        if(!isAfk){
+            if(this.canBeAfkAgain){
+                this.afk = true;
+                !this.hiddenAdmin && (this.canBeAfkAgain = false);
+                announce("BECAME_AFK", [this.name], [this]);
+                this.team !== 0 && room.setPlayerTeam(this.id, 0);
+            } else {
+                notice("YOU_CANT_BE_AFK", [], this);
+            }
+        } else {
+            announce("BECAME_NOT_AFK", [this.name], [this]);
+            this.afk = false;
+            game.checkTheGame();
+        }
+    }
 }
 
 const notifyEnterOrLeave = (player, type) => {

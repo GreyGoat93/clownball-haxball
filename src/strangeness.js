@@ -429,7 +429,6 @@ export const strangenesses = [
                 let dy = ry - by;
                 let distance = Math.sqrt(dx*dx+dy*dy)
                 let multiplier = Math.abs((7/235) * distance + (5/47));
-                console.log(multiplier);
                 let speed = multiplier / distance;
                 room.setPlayerDiscProperties(player.id, {xspeed: dx * speed * -1, yspeed: dy * speed * -1});
                 room.setPlayerDiscProperties(blueTeam[index], {xspeed: dx * speed, yspeed: dy * speed});
@@ -449,7 +448,6 @@ export const strangenesses = [
                 let dy = ry - by;
                 let distance = Math.sqrt(dx*dx+dy*dy)
                 let multiplier = Math.abs((7/235) * distance + (5/47));
-                console.log(multiplier);
                 let speed = (multiplier * 2) / distance;
                 room.setPlayerDiscProperties(enemyTeam[index], {xspeed: dx * speed, yspeed: dy * speed});
             })
@@ -468,7 +466,6 @@ export const strangenesses = [
                 let dy = ry - by;
                 let distance = Math.sqrt(dx*dx+dy*dy)
                 let multiplier = Math.abs((7/235) * distance + (5/47));
-                console.log(multiplier);
                 let speed = (multiplier * 2) / distance;
                 room.setPlayerDiscProperties(player.id, {xspeed: dx * speed * -1, yspeed: dy * speed * -1});
             })

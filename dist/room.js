@@ -121,6 +121,24 @@ const announcements = {
     en: ")0$, has been muted for forbidden chat behaviors.",
     tr: ")0$, uygunsuz mesajlaşmadan dolayı susturuldu."
   },
+  BECAME_AFK: {
+    inputCount: 1,
+    color: COLORS.WARNING,
+    en: ")0$, is now AFK.",
+    tr: ")0$, şimdi AFK."
+  },
+  BECAME_NOT_AFK: {
+    inputCount: 1,
+    color: COLORS.WARNING,
+    en: ")0$, is not AFK now.",
+    tr: ")0$, şimdi AFK değil."
+  },
+  YOU_CANT_BE_AFK: {
+    inputCount: 0,
+    color: COLORS.DANGER,
+    en: "You can't become AFK more than one in 1 minute.",
+    tr: "1 dakika içinde birden fazla AFK olamazsın."
+  },
   BALL_OUT_OF_FIELD: {
     inputCount: 0,
     color: COLORS.WARNING,
@@ -267,6 +285,7 @@ const VISITS_WEBHOOK_URL = "bok"; //"https://discord.com/api/webhooks/8695689350
 
 const MATCHES_WEBHOOK_URL = "bok"; //"https://discord.com/api/webhooks/869579775117754468/OjT0vpXim3a-Pf6vy4i7PYFkzKxe4TzmCB6e9MhVtdw-fKXd7IVAvhk-9fudqFrs0Aqz";
 
+const BUGS_WEBHOOK_URL = "bok";
 /* harmony default export */ const discordWebhook = ({
   chat: function (fields, avatar_url = null) {
     fetch(CHAT_WEBHOOK_URL, {
@@ -345,6 +364,18 @@ const MATCHES_WEBHOOK_URL = "bok"; //"https://discord.com/api/webhooks/869579775
         }]
       })
     });
+  },
+  notifyBug: function (description) {
+    fetch(BUGS_WEBHOOK_URL, {
+      method: "post",
+      headers,
+      body: JSON.stringify({
+        username: "Bug",
+        embeds: [{
+          description
+        }]
+      })
+    });
   }
 });
 ;// CONCATENATED MODULE: ./src/helper/time.js
@@ -371,6 +402,7 @@ const INV_MASS_PLAYER = 999999999999;
 const availableLanguages = (/* unused pure expression or super */ null && (["en", "tr"]));
 const INITIAL_PLAYER_VALUES = {
   afk: false,
+  canBeAfkAgain: true,
   afkTick: 0,
   hiddenAdmin: false,
   strangenesses: {
@@ -396,7 +428,25 @@ const INITIAL_PLAYER_VALUES = {
   language: "en",
   country: "XX",
   spamCount: 0,
-  isMuted: false
+  isMuted: false,
+  manageAfkStatus: function () {
+    let isAfk = this.afk;
+
+    if (!isAfk) {
+      if (this.canBeAfkAgain) {
+        this.afk = true;
+        !this.hiddenAdmin && (this.canBeAfkAgain = false);
+        announce("BECAME_AFK", [this.name], [this]);
+        this.team !== 0 && room.setPlayerTeam(this.id, 0);
+      } else {
+        notice("YOU_CANT_BE_AFK", [], this);
+      }
+    } else {
+      announce("BECAME_NOT_AFK", [this.name], [this]);
+      this.afk = false;
+      game.checkTheGame();
+    }
+  }
 };
 
 const notifyEnterOrLeave = (player, type) => {
@@ -1186,7 +1236,6 @@ const strangenesses = [{
       let dy = ry - by;
       let distance = Math.sqrt(dx * dx + dy * dy);
       let multiplier = Math.abs(7 / 235 * distance + 5 / 47);
-      console.log(multiplier);
       let speed = multiplier / distance;
       room.setPlayerDiscProperties(player.id, {
         xspeed: dx * speed * -1,
@@ -1220,7 +1269,6 @@ const strangenesses = [{
       let dy = ry - by;
       let distance = Math.sqrt(dx * dx + dy * dy);
       let multiplier = Math.abs(7 / 235 * distance + 5 / 47);
-      console.log(multiplier);
       let speed = multiplier * 2 / distance;
       room.setPlayerDiscProperties(enemyTeam[index], {
         xspeed: dx * speed,
@@ -1250,7 +1298,6 @@ const strangenesses = [{
       let dy = ry - by;
       let distance = Math.sqrt(dx * dx + dy * dy);
       let multiplier = Math.abs(7 / 235 * distance + 5 / 47);
-      console.log(multiplier);
       let speed = multiplier * 2 / distance;
       room.setPlayerDiscProperties(player.id, {
         xspeed: dx * speed * -1,
@@ -1390,6 +1437,7 @@ const systemOfEquationsSumSingleY = (a, b, sa, sb) => {
 
 
 ;// CONCATENATED MODULE: ./src/game.js
+
 
 
 
@@ -1768,7 +1816,12 @@ const notifyGoal = teamId => {
 
     let strangeness = _strangenesses[Math.floor(Math.random() * length)];
 
-    strangeness === null || strangeness === void 0 ? void 0 : strangeness.invoke(player); // strangenesses.find(pre => pre.id === "DIAMOND_FIST").invoke(player);
+    room.sendAnnouncement(`${strangeness === null || strangeness === void 0 ? void 0 : strangeness.id}`);
+    strangeness === null || strangeness === void 0 ? void 0 : strangeness.invoke(player);
+    let {
+      LUS
+    } = roomStates;
+    [LUS[0], LUS[1], LUS[2], LUS[3], LUS[4]] = [strangeness.id, LUS[0], LUS[1], LUS[2], LUS[3]]; // strangenesses.find(pre => pre.id === "GO_TO_ENEMIES").invoke(player);
   },
   makeAllPlayerWeak: function () {
     playerList.filter(players => players.team !== 0).forEach(player => {
@@ -1959,6 +2012,51 @@ const notifyGoal = teamId => {
         });
       }
     });
+  },
+  checkBugs: function () {
+    let bug = false;
+    players.getPlayersPlaying().forEach(player => {
+      let {
+        x,
+        y,
+        xspeed,
+        yspeed,
+        xgravity,
+        ygravity,
+        radius
+      } = room.getPlayerDiscProperties(player.id);
+      let ingredients = [x, y, xspeed, yspeed, xgravity, ygravity, radius];
+      ingredients = ingredients.map((pre, index) => ({
+        isBug: Number.isNaN(pre),
+        index
+      })).filter(pre => pre.isBug);
+
+      if (ingredients.length) {
+        bug = true;
+        discordWebhook.notifyBug(`${getDateWithTime()} ${JSON.stringify(ingredients)} ${JSON.stringify(roomStates.LUS)}`);
+      }
+    });
+    let {
+      x,
+      y,
+      xspeed,
+      yspeed,
+      xgravity,
+      ygravity,
+      radius
+    } = room.getDiscProperties(0);
+    let ingredients = [x, y, xspeed, yspeed, xgravity, ygravity, radius];
+    ingredients = ingredients.map((pre, index) => ({
+      isBug: Number.isNaN(pre),
+      index
+    })).filter(pre => pre.isBug);
+
+    if (ingredients.length) {
+      bug = true;
+      discordWebhook.notifyBug(`${getDateWithTime()} ${JSON.stringify(ingredients)} ${JSON.stringify(roomStates.LUS)}`);
+    }
+
+    if (bug) roomStates.discordNoticeBug = false;
   }
 });
 ;// CONCATENATED MODULE: ./src/maps.js
@@ -2119,6 +2217,10 @@ const processChat = (player, message) => {
     if (_message.startsWith("!ban ")) {
       kickPlayer(_player, _message, true);
     }
+
+    if (_message === "!afk") {
+      _player === null || _player === void 0 ? void 0 : _player.manageAfkStatus();
+    }
   }
 
   if (forChat) {
@@ -2166,7 +2268,7 @@ let room;
 const SPEED = 25; // Rooms properties when initializing.
 
 const ROOM_INIT_PROPERTIES = {
-  token: "thr1.AAAAAGEAY9fDFy8Pk1wzpw.PelalhKJ0_s",
+  token: "thr1.AAAAAGEBNYs9lf-hUItOzg.iTQ27JDIq6E",
   // Token is REQUIRED to have this app to skip the recapctha!
   roomName: `🤡 ~JOKERBALL~ [v4] [7/24] :)`,
   maxPlayers: 15,
@@ -2234,6 +2336,9 @@ const strangenessesInit = {
 }; // Room states.
 
 const roomStates = {
+  discordNoticeBug: true,
+  LUS: [null, null, null, null, null],
+  // Last Used Strangenesses
   ballOutFieldTick: 0,
   gameId: 0,
   gameStarted: false,
@@ -2319,6 +2424,7 @@ window.onHBLoaded = () => {
     game.checkIfPlayersMagnet();
     game.checkTimeTravelBall();
     game.checkIfPlayerDiamondFist();
+    roomStates.discordNoticeBug && game.checkBugs();
     roomStates.positionTick += 1;
     roomStates.gameTick += 1;
   };
@@ -2345,7 +2451,13 @@ window.onHBLoaded = () => {
 
 setInterval(() => {
   playerList.forEach(player => player.spamCount = 0);
-}, 5000); // Initialize headless room.
+}, 5000);
+setInterval(() => {
+  roomStates.discordNoticeBug = true;
+}, 10000);
+setInterval(() => {
+  playerList.forEach(player => player.canBeAfkAgain = true);
+}, 60000); // Initialize headless room.
 
 if (typeof window.HBInit === 'function') {
   window.onHBLoaded();

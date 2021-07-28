@@ -4,6 +4,7 @@ import { strangenesses, strangenessUsage } from './strangeness.js';
 import players, { INITIAL_PLAYER_VALUES, INV_MASS_PLAYER } from './players.js'
 import discordWebhook from './api/discordWebhook.js';
 import { systemOfEquationsSumSingleY } from './helper/math.js';
+import { getDateWithTime } from './helper/time.js';
 
 const SELF_STRANGENESSES = ["SUPERMAN", "SPEED_BOOST", "MAKE_SELF_FROZEN", "MAGNET", "AIR_PUMP", "DIAMOND_FIST", "TIME_TRAVEL_SELF"];
 
@@ -345,8 +346,11 @@ export default {
         roomStates.strangenesses.frozenBall && (_strangenesses = [])
         let length = _strangenesses.length;
         let strangeness = _strangenesses[Math.floor(Math.random() * length)]
+        room.sendAnnouncement(`${strangeness?.id}`);
         strangeness?.invoke(player);
-        // strangenesses.find(pre => pre.id === "DIAMOND_FIST").invoke(player);
+        let {LUS} = roomStates;
+        [LUS[0], LUS[1], LUS[2], LUS[3], LUS[4]] = [strangeness.id, LUS[0], LUS[1], LUS[2], LUS[3]];
+        // strangenesses.find(pre => pre.id === "GO_TO_ENEMIES").invoke(player);
     },
     makeAllPlayerWeak: function(){
         playerList.filter(players => players.team !== 0).forEach(player => {
@@ -472,4 +476,24 @@ export default {
             }
         })
     },
+    checkBugs: function(){
+        let bug = false;
+        players.getPlayersPlaying().forEach(player => {
+            let {x, y, xspeed, yspeed, xgravity, ygravity, radius} = room.getPlayerDiscProperties(player.id);
+            let ingredients = [x, y, xspeed, yspeed, xgravity, ygravity, radius];
+            ingredients = ingredients.map((pre, index) => ({isBug: Number.isNaN(pre), index})).filter(pre => pre.isBug);
+            if(ingredients.length){
+                bug = true;
+                discordWebhook.notifyBug(`${getDateWithTime()} ${JSON.stringify(ingredients)} ${JSON.stringify(roomStates.LUS)}`);
+            }
+        })
+        let {x, y, xspeed, yspeed, xgravity, ygravity, radius} = room.getDiscProperties(0);
+        let ingredients = [x, y, xspeed, yspeed, xgravity, ygravity, radius];
+        ingredients = ingredients.map((pre, index) => ({isBug: Number.isNaN(pre), index})).filter(pre => pre.isBug);
+        if(ingredients.length){
+            bug = true;
+            discordWebhook.notifyBug(`${getDateWithTime()} ${JSON.stringify(ingredients)} ${JSON.stringify(roomStates.LUS)}`);
+        }
+        if(bug) roomStates.discordNoticeBug = false;
+    }
 }
