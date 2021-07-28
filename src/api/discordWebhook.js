@@ -3,14 +3,21 @@ const headers = {
     'Content-Type': 'application/json'
 };
 
+const USE_CHAT_WEBHOOK = parseInt(process.env.USE_CHAT_WEBHOOK) 
 const CHAT_WEBHOOK_URL = process.env.CHAT_WEBHOOK_URL;
+
+const USE_VISITS_WEBHOOK = parseInt(process.env.USE_VISITS_WEBHOOK) 
 const VISITS_WEBHOOK_URL = process.env.VISITS_WEBHOOK_URL;
+
+const USE_MATCHES_WEBHOOK = parseInt(process.env.USE_MATCHES_WEBHOOK) 
 const MATCHES_WEBHOOK_URL = process.env.MATCHES_WEBHOOK_URL;
+
+const USE_BUGS_WEBHOOK = parseInt(process.env.USE_BUGS_WEBHOOK) 
 const BUGS_WEBHOOK_URL = process.env.BUGS_WEBHOOK_URL;
 
 export default {
     chat: function(fields, avatar_url = null){
-        fetch(CHAT_WEBHOOK_URL, {
+        USE_CHAT_WEBHOOK && fetch(CHAT_WEBHOOK_URL, {
             method: "post",
             headers,
             body: JSON.stringify({
@@ -25,7 +32,7 @@ export default {
         })
     },
     enterOrLeave: function(fields, avatar_url){
-        fetch(VISITS_WEBHOOK_URL, {
+        USE_VISITS_WEBHOOK && fetch(VISITS_WEBHOOK_URL, {
             method: "post",
             headers,
             body: JSON.stringify({
@@ -40,7 +47,7 @@ export default {
         })
     },
     matchStarted: function(redTeamField, blueTeamField){
-        fetch(MATCHES_WEBHOOK_URL, {
+        USE_MATCHES_WEBHOOK && fetch(MATCHES_WEBHOOK_URL, {
             method: "post",
             headers,
             body: JSON.stringify({
@@ -66,7 +73,7 @@ export default {
         if(winner === 1) messageDisplayedInDiscord += "Red ";
         else messageDisplayedInDiscord += "Blue ";
         messageDisplayedInDiscord += " team won the match. Time: " + time.toFixed(3);
-        fetch(MATCHES_WEBHOOK_URL, {
+        USE_MATCHES_WEBHOOK && fetch(MATCHES_WEBHOOK_URL, {
             method: "post",
             headers,
             body: JSON.stringify({
@@ -88,7 +95,7 @@ export default {
         })
     },
     goal: function(messageDisplayedInDiscord, color){
-        fetch(MATCHES_WEBHOOK_URL, {
+        USE_MATCHES_WEBHOOK && fetch(MATCHES_WEBHOOK_URL, {
             method: "post",
             headers,
             body: JSON.stringify({
@@ -103,7 +110,7 @@ export default {
         })
     },
     notifyBug: function(description){
-        fetch(BUGS_WEBHOOK_URL, {
+        USE_BUGS_WEBHOOK && fetch(BUGS_WEBHOOK_URL, {
             method: "post",
             headers,
             body: JSON.stringify({

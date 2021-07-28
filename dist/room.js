@@ -285,13 +285,17 @@ const headers = {
   'Accept': 'application/json',
   'Content-Type': 'application/json'
 };
+const USE_CHAT_WEBHOOK = parseInt("0");
 const CHAT_WEBHOOK_URL = "https://discord.com/api/webhooks/869924116826837042/OP-FVGYNnRnypWpbALFKByNWEincjtAelwfNYEOrnTpGCw1DUOJ5_h9pprtg-IK8nde2";
+const USE_VISITS_WEBHOOK = parseInt("1");
 const VISITS_WEBHOOK_URL = "https://discord.com/api/webhooks/869923955862044673/TDyz_39QfH4nEJDM2z6zhxPj99daQTXmqvOZhTVSQww-htq01Xi0qotnl8JiY-gXCeiS";
+const USE_MATCHES_WEBHOOK = parseInt("1");
 const MATCHES_WEBHOOK_URL = "https://discord.com/api/webhooks/869923819555541042/r7l7TwpduJ8ZgH6GpDLQ5i9ygpol9QpHBHeGuSakwY5Zb22I5DRWfd8nm5YDQ6eP5t30";
+const USE_BUGS_WEBHOOK = parseInt("1");
 const BUGS_WEBHOOK_URL = "https://discord.com/api/webhooks/869923686629642311/5tI_bIbir_Wy59I2Len91ZNNx1rhySZbpDUkugziWjTvU59dpHVKxSrn2Umslf21bSYd";
 /* harmony default export */ const discordWebhook = ({
   chat: function (fields, avatar_url = null) {
-    fetch(CHAT_WEBHOOK_URL, {
+    USE_CHAT_WEBHOOK && fetch(CHAT_WEBHOOK_URL, {
       method: "post",
       headers,
       body: JSON.stringify({
@@ -304,7 +308,7 @@ const BUGS_WEBHOOK_URL = "https://discord.com/api/webhooks/869923686629642311/5t
     });
   },
   enterOrLeave: function (fields, avatar_url) {
-    fetch(VISITS_WEBHOOK_URL, {
+    USE_VISITS_WEBHOOK && fetch(VISITS_WEBHOOK_URL, {
       method: "post",
       headers,
       body: JSON.stringify({
@@ -317,7 +321,7 @@ const BUGS_WEBHOOK_URL = "https://discord.com/api/webhooks/869923686629642311/5t
     });
   },
   matchStarted: function (redTeamField, blueTeamField) {
-    fetch(MATCHES_WEBHOOK_URL, {
+    USE_MATCHES_WEBHOOK && fetch(MATCHES_WEBHOOK_URL, {
       method: "post",
       headers,
       body: JSON.stringify({
@@ -338,7 +342,7 @@ const BUGS_WEBHOOK_URL = "https://discord.com/api/webhooks/869923686629642311/5t
     let messageDisplayedInDiscord = "";
     if (winner === 1) messageDisplayedInDiscord += "Red ";else messageDisplayedInDiscord += "Blue ";
     messageDisplayedInDiscord += " team won the match. Time: " + time.toFixed(3);
-    fetch(MATCHES_WEBHOOK_URL, {
+    USE_MATCHES_WEBHOOK && fetch(MATCHES_WEBHOOK_URL, {
       method: "post",
       headers,
       body: JSON.stringify({
@@ -356,7 +360,7 @@ const BUGS_WEBHOOK_URL = "https://discord.com/api/webhooks/869923686629642311/5t
     });
   },
   goal: function (messageDisplayedInDiscord, color) {
-    fetch(MATCHES_WEBHOOK_URL, {
+    USE_MATCHES_WEBHOOK && fetch(MATCHES_WEBHOOK_URL, {
       method: "post",
       headers,
       body: JSON.stringify({
@@ -369,7 +373,7 @@ const BUGS_WEBHOOK_URL = "https://discord.com/api/webhooks/869923686629642311/5t
     });
   },
   notifyBug: function (description) {
-    fetch(BUGS_WEBHOOK_URL, {
+    USE_BUGS_WEBHOOK && fetch(BUGS_WEBHOOK_URL, {
       method: "post",
       headers,
       body: JSON.stringify({
