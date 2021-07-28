@@ -363,30 +363,39 @@ export default {
         });
     },
     checkBallInTheField(){
-        let {x, y} = room.getDiscProperties(0);
-        if(x > BOUNDS.X1 && x < BOUNDS.X2 && y > BOUNDS.Y1 && y < BOUNDS.Y2){
-            roomStates.ballOutFieldTick = 0;
-        } else {
-            roomStates.ballOutFieldTick += 1;
-        }
-
-        if(roomStates.ballOutFieldTick === 300){
-            room.setDiscProperties(0, {x: 0, y: 0, xspeed: 0, yspeed: 0});
-            room.ballOutFieldTick = 0;
-            announceLouder("BALL_OUT_OF_FIELD", []);
-        }
+        let _position = room.getDiscProperties(0);
+        if(_position){
+            let {x, y} = _position
+            if(x > BOUNDS.X1 && x < BOUNDS.X2 && y > BOUNDS.Y1 && y < BOUNDS.Y2){
+                roomStates.ballOutFieldTick = 0;
+            } else {
+                roomStates.ballOutFieldTick += 1;
+            }
+            
+            if(roomStates.ballOutFieldTick === 300){
+                room.setDiscProperties(0, {x: 0, y: 0, xspeed: 0, yspeed: 0});
+                room.ballOutFieldTick = 0;
+                announceLouder("BALL_OUT_OF_FIELD", []);
+            }
+        } 
     },
     useSpeedBoost: function(player){
         const _player = players.findPlayerById(player.id);
         if(_player.strangenesses.speedBoost){
             let playerProps = room.getPlayerDiscProperties(player.id);
-            room.setPlayerDiscProperties(player.id, {xspeed: playerProps.xspeed * 1.15, yspeed: playerProps.yspeed * 1.15}); 
+            if(playerProps){
+                room.setPlayerDiscProperties(player.id, {xspeed: playerProps.xspeed * 1.15, yspeed: playerProps.yspeed * 1.15}); 
+            }
         }
     },
     checkIfPlayersFrozen: function(){
         const freezePlayers = function(teamId){
             players.findPlayersByTeam(teamId).forEach(player => {
-                room.setPlayerDiscProperties(player.id, {x: player.strangenesses.frozenCoordinates?.x, y: player.strangenesses.frozenCoordinates?.y, xspeed: 0, yspeed: 0});
+                let _position = player.strangenesses.frozenCoordinates;
+                if(_position){
+                    let {x, y} = _position; 
+                    room.setPlayerDiscProperties(player.id, {x, y, xspeed: 0, yspeed: 0});
+                }
             })
         }
 
@@ -403,7 +412,9 @@ export default {
             if(player.strangenesses.selfFrozen){
                 let x = player.strangenesses.selfFrozenCoordinates?.x;
                 let y = player.strangenesses.selfFrozenCoordinates?.y;
-                room.setPlayerDiscProperties(player.id, {x, y, xspeed: 0, yspeed: 0});
+                if(x && y){
+                    room.setPlayerDiscProperties(player.id, {x, y, xspeed: 0, yspeed: 0});
+                }
             }
         })
     },
@@ -424,42 +435,44 @@ export default {
     checkIfPlayersMagnet: function(){
         let xgravity = 0;
         let ygravity = 0;
-        playerList.filter(player => player.team !== 0).forEach(player => {
-            let _ball = room.getDiscProperties(0);
-            let _player = room.getPlayerDiscProperties(player.id);
-            if(_ball && _player){
-                let {x, y, radius: r} = _ball;
-                let {x: bx, y: by, radius: br} = _player;
-                let dx = x - bx;
-                let dy = y - by;
-                let sumR = r + br; 
-                let distance = Math.sqrt(dx*dx+dy*dy);
-                if(player.strangenesses.magnet){
-                    room.setPlayerAvatar(player.id, "🧲");
-                    let equation = systemOfEquationsSumSingleY(300 * 300, sumR * sumR, 0, 0.05);
-                    let multiplier = Math.abs((equation.x) * distance + (equation.y));
-                    let speed = multiplier / distance;
-                    if(distance < 300 && distance > r + br){
-                        let xg = speed * dx * -1;
-                        let yg = speed * dy * -1;
-                        xgravity += xg;
-                        ygravity += yg;
+        if(!roomStates.strangenesses.frozenBall){
+            playerList.filter(player => player.team !== 0).forEach(player => {
+                let _ball = room.getDiscProperties(0);
+                let _player = room.getPlayerDiscProperties(player.id);
+                if(_ball && _player){
+                    let {x, y, radius: r} = _ball;
+                    let {x: bx, y: by, radius: br} = _player;
+                    let dx = x - bx;
+                    let dy = y - by;
+                    let sumR = r + br; 
+                    let distance = Math.sqrt(dx*dx+dy*dy);
+                    if(player.strangenesses.magnet){
+                        room.setPlayerAvatar(player.id, "🧲");
+                        let equation = systemOfEquationsSumSingleY(300 * 300, sumR * sumR, 0, 0.05);
+                        let multiplier = Math.abs((equation.x) * distance + (equation.y));
+                        let speed = multiplier / distance;
+                        if(distance < 300 && distance > r + br){
+                            let xg = speed * dx * -1;
+                            let yg = speed * dy * -1;
+                            xgravity += xg;
+                            ygravity += yg;
+                        }
+                    }
+                    if(player.strangenesses.airPump){
+                        room.setPlayerAvatar(player.id, "💨");
+                        let equation = systemOfEquationsSumSingleY(400 * 400, sumR * sumR, 0, 0.05);
+                        let multiplier = Math.abs((equation.x) * distance + (equation.y));
+                        let speed = multiplier / distance;
+                        if(distance < 400 && distance > r + br){
+                            let xg = speed * dx;
+                            let yg = speed * dy;
+                            xgravity += xg;
+                            ygravity += yg;
+                        }
                     }
                 }
-                if(player.strangenesses.airPump){
-                    room.setPlayerAvatar(player.id, "💨");
-                    let equation = systemOfEquationsSumSingleY(400 * 400, sumR * sumR, 0, 0.05);
-                    let multiplier = Math.abs((equation.x) * distance + (equation.y));
-                    let speed = multiplier / distance;
-                    if(distance < 400 && distance > r + br){
-                        let xg = speed * dx;
-                        let yg = speed * dy;
-                        xgravity += xg;
-                        ygravity += yg;
-                    }
-                }
-            }
-        })
+            })
+        }
         room.setDiscProperties(0, {xgravity, ygravity});
     },
     checkIfPlayerDiamondFist: function(){

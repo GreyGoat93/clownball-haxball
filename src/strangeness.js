@@ -14,13 +14,15 @@ export const strangenesses = [
         id: "TELEPORT_KICKER",
         invoke(playerKicked){
             let playerProps = room.getPlayerDiscProperties(playerKicked.id);
-            room.setPlayerDiscProperties(
-                playerKicked.id, 
-                {
-                    x: playerProps.x - generateRandomNumber(-200, 200), 
-                    y: playerProps.y - generateRandomNumber(-200, 200)
-                }
-            );
+            if(playerProps){
+                room.setPlayerDiscProperties(
+                    playerKicked.id, 
+                    {
+                        x: playerProps.x - generateRandomNumber(-200, 200), 
+                        y: playerProps.y - generateRandomNumber(-200, 200)
+                    }
+                );
+            }
         }
     },
     {
@@ -28,52 +30,63 @@ export const strangenesses = [
         invoke(playerKicked){
             let playerProps = room.getPlayerDiscProperties(playerKicked.id);
             let ballProps = room.getDiscProperties(0);
-            let dx = playerProps.x - ballProps.x;
-            let dy = playerProps.y - ballProps.y;
-            room.setPlayerDiscProperties(playerKicked.id, {xspeed: playerProps.xspeed + (dx / 1.4), yspeed: playerProps.yspeed + (dy / 1.4)});
+            if(playerProps && ballProps){
+                let dx = playerProps.x - ballProps.x;
+                let dy = playerProps.y - ballProps.y;
+                room.setPlayerDiscProperties(playerKicked.id, {xspeed: playerProps.xspeed + (dx / 1.4), yspeed: playerProps.yspeed + (dy / 1.4)});
+            }
         }
     },
     {
         id: "BOMB_BALL",
         invoke(playerKicked){
-            let {x, y} = room.getDiscProperties(0);
-            const SYSTEM_OF_EQUATION_X = -7/40000;
-            const SYSTEM_OF_EQUATION_Y = 15;
-            playerList.filter(pre => pre.team !== 0).forEach(player => {
-                let {x: px, y: py} = room.getPlayerDiscProperties(player.id);
-                let dx = px - x;
-                let dy = py - y;
-                let sx;
-                let sy;
-                if(dx === 0) sx = 0;
-                else if(dx > 0) sx = 1;
-                else sx = -1;
-                if(dy === 0) sy = 0;
-                else if(dy > 0) sy = 1;
-                else sy = -1;
-                let distance = Math.sqrt(dx*dx+dy*dy);
-                let xspeed = ((dx * distance) * SYSTEM_OF_EQUATION_X + SYSTEM_OF_EQUATION_Y) * sx;
-                let yspeed = ((dy * distance) * SYSTEM_OF_EQUATION_X + SYSTEM_OF_EQUATION_Y) * sy;
-                if(distance < 200){
-                    room.setPlayerDiscProperties(player.id, {xspeed, yspeed});
-                }
-            })
+            let __ball = room.getDiscProperties(0);
+            if(__ball){
+                let {x, y} = __ball;
+                const SYSTEM_OF_EQUATION_X = -7/40000;
+                const SYSTEM_OF_EQUATION_Y = 15;
+                playerList.filter(pre => pre.team !== 0).forEach(player => {
+                    let __player = room.getPlayerDiscProperties(player.id);
+                    if(__player){
+                        let {x: px, y: py} = __player; 
+                        let dx = px - x;
+                        let dy = py - y;
+                        let sx;
+                        let sy;
+                        if(dx === 0) sx = 0;
+                        else if(dx > 0) sx = 1;
+                        else sx = -1;
+                        if(dy === 0) sy = 0;
+                        else if(dy > 0) sy = 1;
+                        else sy = -1;
+                        let distance = Math.sqrt(dx*dx+dy*dy);
+                        let xspeed = ((dx * distance) * SYSTEM_OF_EQUATION_X + SYSTEM_OF_EQUATION_Y) * sx;
+                        let yspeed = ((dy * distance) * SYSTEM_OF_EQUATION_X + SYSTEM_OF_EQUATION_Y) * sy;
+                        if(distance < 200){
+                            room.setPlayerDiscProperties(player.id, {xspeed, yspeed});
+                        }
+                    }
+                })
+            }
         }
     },
     {
         id: "SHOOT",
         invoke(playerKicked){
-            let {x, y, xspeed, yspeed} = room.getDiscProperties(0);
-            let {x: px, y: py} = room.getPlayerDiscProperties(playerKicked.id);
-            let dx = x - px;
-            let dy = y - py;
-            let distance = 15 / Math.sqrt(dx*dx+dy*dy);
-            room.setDiscProperties(0, {xspeed: xspeed + (dx * distance), yspeed: yspeed + (dy * distance), color: 0xffce00});
-            strangenessUsage.push({
-                tick: roomStates.gameTick + 5,
-                positionId: roomStates.positionId,
-                invoke(){
-                    room.setDiscProperties(0, {color: 0xff5a00});
+            let __ball = room.getDiscProperties(0);
+            let __player = room.getPlayerDiscProperties(playerKicked.id);
+            if(__ball && __player){           
+                let {x, y, xspeed, yspeed} = __ball;
+                let {x: px, y: py} = __player
+                let dx = x - px;
+                let dy = y - py;
+                let distance = 15 / Math.sqrt(dx*dx+dy*dy);
+                room.setDiscProperties(0, {xspeed: xspeed + (dx * distance), yspeed: yspeed + (dy * distance), color: 0xffce00});
+                strangenessUsage.push({
+                    tick: roomStates.gameTick + 5,
+                    positionId: roomStates.positionId,
+                    invoke(){
+                        room.setDiscProperties(0, {color: 0xff5a00});
                 }
             })
             strangenessUsage.push({
@@ -105,27 +118,36 @@ export const strangenesses = [
                 }
             })
         }
+    }
     },
     {
         id: "PLUNGER",
         invoke(playerKicked){
-            let {x, y} = room.getDiscProperties(0);
-            let {x: px, y: py} = room.getPlayerDiscProperties(playerKicked.id);
-            let dx = px - x;
-            let dy = py - y;
-            let distance = 4 / Math.sqrt(dx*dx+dy*dy);
-            room.setDiscProperties(0, {xspeed: dx * distance, yspeed: dy * distance});
+            let __ball = room.getDiscProperties(0);
+            let __player = room.getPlayerDiscProperties(playerKicked.id);
+            if(__ball && __player){
+                let {x, y} = __ball;
+                let {x: px, y: py} = __player;
+                let dx = px - x;
+                let dy = py - y;
+                let distance = 4 / Math.sqrt(dx*dx+dy*dy);
+                room.setDiscProperties(0, {xspeed: dx * distance, yspeed: dy * distance});
+            }
         }
     },
     {
         id: "TROLL_THE_WAY",
         invoke(playerKicked){
-            let {x, y} = room.getDiscProperties(0);
-            let {x: px, y: py} = room.getPlayerDiscProperties(playerKicked.id);
-            room.setDiscProperties(0, {xspeed: 0, yspeed: 0});
-            let dx = (px - x) * -1;
-            let dy = (py - y) * -1;
-            room.setPlayerDiscProperties(playerKicked.id, {x: x + dx, y: y + dy});
+            let __ball = room.getDiscProperties(0);
+            let __player = room.getPlayerDiscProperties(playerKicked.id);
+            if(__ball && __player){
+                let {x, y} = __ball;
+                let {x: px, y: py} = __player; 
+                room.setDiscProperties(0, {xspeed: 0, yspeed: 0});
+                let dx = (px - x) * -1;
+                let dy = (py - y) * -1;
+                room.setPlayerDiscProperties(playerKicked.id, {x: x + dx, y: y + dy});
+            }
         }
     },
     {
@@ -154,12 +176,16 @@ export const strangenesses = [
             let blueTeam = players.findPlayersByTeam(2);
             redTeam.forEach((player, index) => {
                 if(blueTeam[index]){
-                    let {x: redX, y: redY} = room.getPlayerDiscProperties(player.id);
-                    let {x: blueX, y: blueY} = room.getPlayerDiscProperties(blueTeam[index].id);
-                    room.setPlayerDiscProperties(player.id, {x: blueX, y: blueY});
-                    room.setPlayerDiscProperties(blueTeam[index].id, {x: redX, y: redY});
-                    room.setPlayerAvatar(player.id, "😵");
-                    room.setPlayerAvatar(blueTeam[index].id , "😵");
+                    let __red = room.getPlayerDiscProperties(player.id);
+                    let __blue = room.getPlayerDiscProperties(blueTeam[index].id);
+                    if(__red && __blue){
+                        let {x: redX, y: redY} = __red;
+                        let {x: blueX, y: blueY} = __blue;
+                        room.setPlayerDiscProperties(player.id, {x: blueX, y: blueY});
+                        room.setPlayerDiscProperties(blueTeam[index].id, {x: redX, y: redY});
+                        room.setPlayerAvatar(player.id, "😵");
+                        room.setPlayerAvatar(blueTeam[index].id , "😵");
+                    }
                 }
             })
             strangenessUsage.push({
@@ -398,23 +424,26 @@ export const strangenesses = [
     {
         id: "TIME_TRAVEL_BALL",
         invoke(playerKicked){
-            const {x, y, xspeed, yspeed} = room.getDiscProperties(0);
-            roomStates.strangenesses.timeTravelBall = true;
-            let timeTravelBallId = roomStates.strangenesses.timeTravelBallId += 1;
-            roomStates.strangenesses.timeTravelBallCoordinates = {x, y};
-            strangenessUsage.push({
-                tick: roomStates.gameTick + 180,
-                positionId: roomStates.positionId,
-                invoke(){
-                    if(timeTravelBallId === roomStates.strangenesses.timeTravelBallId){
-                        let dx = roomStates.strangenesses.timeTravelBallCoordinates?.x;
-                        let dy = roomStates.strangenesses.timeTravelBallCoordinates?.y;
-                        room.setDiscProperties(0, {x: dx, y: dy, xspeed, yspeed})
-                        roomStates.strangenesses.timeTravelBall = false;
-                        room.setDiscProperties(0, {color: 0xFFFFFF});
+            let __player = room.getDiscProperties(0);
+            if(__player){
+                const {x, y, xspeed, yspeed} = __player; 
+                roomStates.strangenesses.timeTravelBall = true;
+                let timeTravelBallId = roomStates.strangenesses.timeTravelBallId += 1;
+                roomStates.strangenesses.timeTravelBallCoordinates = {x, y};
+                strangenessUsage.push({
+                    tick: roomStates.gameTick + 180,
+                    positionId: roomStates.positionId,
+                    invoke(){
+                        if(timeTravelBallId === roomStates.strangenesses.timeTravelBallId){
+                            let dx = roomStates.strangenesses.timeTravelBallCoordinates?.x;
+                            let dy = roomStates.strangenesses.timeTravelBallCoordinates?.y;
+                            room.setDiscProperties(0, {x: dx, y: dy, xspeed, yspeed})
+                            roomStates.strangenesses.timeTravelBall = false;
+                            room.setDiscProperties(0, {color: 0xFFFFFF});
+                        }
                     }
-                }
-            })
+                })
+            }
         }
     },
     {
@@ -423,15 +452,19 @@ export const strangenesses = [
             const blueTeamIds = players.findPlayersByTeam(2).map(pre => pre.id);
             const blueTeam = shuffle(blueTeamIds);
             players.findPlayersByTeam(1).forEach((player, index) => {
-                let {x: rx, y: ry} = room.getPlayerDiscProperties(player.id);
-                let {x: bx, y: by} = room.getPlayerDiscProperties(blueTeam[index]);
-                let dx = rx - bx;
-                let dy = ry - by;
-                let distance = Math.sqrt(dx*dx+dy*dy)
-                let multiplier = Math.abs((7/235) * distance + (5/47));
-                let speed = multiplier / distance;
-                room.setPlayerDiscProperties(player.id, {xspeed: dx * speed * -1, yspeed: dy * speed * -1});
-                room.setPlayerDiscProperties(blueTeam[index], {xspeed: dx * speed, yspeed: dy * speed});
+                let __player = room.getPlayerDiscProperties(player.id);
+                let __blue = room.getPlayerDiscProperties(blueTeam[index]);
+                if(__blue && __player){
+                    let {x: rx, y: ry} = __player;
+                    let {x: bx, y: by} = __blue;
+                    let dx = rx - bx;
+                    let dy = ry - by;
+                    let distance = Math.sqrt(dx*dx+dy*dy)
+                    let multiplier = Math.abs((7/235) * distance + (5/47));
+                    let speed = multiplier / distance;
+                    room.setPlayerDiscProperties(player.id, {xspeed: dx * speed * -1, yspeed: dy * speed * -1});
+                    room.setPlayerDiscProperties(blueTeam[index], {xspeed: dx * speed, yspeed: dy * speed});
+                }
             })
         }
     },
@@ -442,14 +475,18 @@ export const strangenesses = [
             const enemyTeamIds = players.findPlayersByTeam(game.convertTeam(_player.team)).map(pre => pre.id);
             const enemyTeam = shuffle(enemyTeamIds);
             players.findPlayersByTeam(_player.team).forEach((player, index) => {
-                let {x: rx, y: ry} = room.getPlayerDiscProperties(player.id);
-                let {x: bx, y: by} = room.getPlayerDiscProperties(enemyTeam[index]);
-                let dx = rx - bx;
-                let dy = ry - by;
-                let distance = Math.sqrt(dx*dx+dy*dy)
-                let multiplier = Math.abs((7/235) * distance + (5/47));
-                let speed = (multiplier * 2) / distance;
-                room.setPlayerDiscProperties(enemyTeam[index], {xspeed: dx * speed, yspeed: dy * speed});
+                let __player = room.getPlayerDiscProperties(player.id);
+                let __enemy = room.getPlayerDiscProperties(enemyTeam[index]);
+                if(__player && __enemy){
+                    let {x: rx, y: ry} = __player;
+                    let {x: bx, y: by} = __enemy;
+                    let dx = rx - bx;
+                    let dy = ry - by;
+                    let distance = Math.sqrt(dx*dx+dy*dy)
+                    let multiplier = Math.abs((7/235) * distance + (5/47));
+                    let speed = (multiplier * 2) / distance;
+                    room.setPlayerDiscProperties(enemyTeam[index], {xspeed: dx * speed, yspeed: dy * speed});
+                }
             })
         }
     },
@@ -460,14 +497,18 @@ export const strangenesses = [
             const enemyTeamIds = players.findPlayersByTeam(game.convertTeam(_player.team)).map(pre => pre.id);
             const enemyTeam = shuffle(enemyTeamIds);
             players.findPlayersByTeam(_player.team).forEach((player, index) => {
-                let {x: rx, y: ry} = room.getPlayerDiscProperties(player.id);
-                let {x: bx, y: by} = room.getPlayerDiscProperties(enemyTeam[index]);
-                let dx = rx - bx;
-                let dy = ry - by;
-                let distance = Math.sqrt(dx*dx+dy*dy)
-                let multiplier = Math.abs((7/235) * distance + (5/47));
-                let speed = (multiplier * 2) / distance;
-                room.setPlayerDiscProperties(player.id, {xspeed: dx * speed * -1, yspeed: dy * speed * -1});
+                let __player = room.getPlayerDiscProperties(player.id);
+                let __enemy = room.getPlayerDiscProperties(enemyTeam[index]);
+                if(__player && __enemy){
+                    let {x: rx, y: ry} = __player;
+                    let {x: bx, y: by} = __enemy;
+                    let dx = rx - bx;
+                    let dy = ry - by;
+                    let distance = Math.sqrt(dx*dx+dy*dy)
+                    let multiplier = Math.abs((7/235) * distance + (5/47));
+                    let speed = (multiplier * 2) / distance;
+                    room.setPlayerDiscProperties(player.id, {xspeed: dx * speed * -1, yspeed: dy * speed * -1});
+                }
             })
         }
     },

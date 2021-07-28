@@ -189,7 +189,7 @@ export default {
     assignPosition: function(){
         playerList.forEach(player => {
             const _player = room.getPlayer(player.id);
-            player.position = _player.position;
+            _player && (player.position = _player.position);
         })
     }
 }
