@@ -410,8 +410,11 @@ export default {
     checkIfPlayersAreSuperman: function(){
         playerList.forEach(player => {
             if(player.strangenesses.superman){
-                let {xspeed, yspeed} = room.getDiscProperties(0);
-                room.setPlayerDiscProperties(player.id, {xspeed, yspeed});
+                let _player = room.getDiscProperties(0);
+                if(_player){
+                    let {xspeed, yspeed} = _player;
+                    room.setPlayerDiscProperties(player.id, {xspeed, yspeed});
+                }
             }
         })
     },
@@ -422,34 +425,38 @@ export default {
         let xgravity = 0;
         let ygravity = 0;
         playerList.filter(player => player.team !== 0).forEach(player => {
-            let {x, y, radius: r} = room.getDiscProperties(0);
-            let {x: bx, y: by, radius: br} = room.getPlayerDiscProperties(player.id);
-            let dx = x - bx;
-            let dy = y - by;
-            let sumR = r + br; 
-            let distance = Math.sqrt(dx*dx+dy*dy);
-            if(player.strangenesses.magnet){
-                room.setPlayerAvatar(player.id, "🧲");
-                let equation = systemOfEquationsSumSingleY(300 * 300, sumR * sumR, 0, 0.05);
-                let multiplier = Math.abs((equation.x) * distance + (equation.y));
-                let speed = multiplier / distance;
-                if(distance < 300 && distance > r + br){
-                    let xg = speed * dx * -1;
-                    let yg = speed * dy * -1;
-                    xgravity += xg;
-                    ygravity += yg;
+            let _ball = room.getDiscProperties(0);
+            let _player = room.getPlayerDiscProperties(player.id);
+            if(_ball && _player){
+                let {x, y, radius: r} = _ball;
+                let {x: bx, y: by, radius: br} = _player;
+                let dx = x - bx;
+                let dy = y - by;
+                let sumR = r + br; 
+                let distance = Math.sqrt(dx*dx+dy*dy);
+                if(player.strangenesses.magnet){
+                    room.setPlayerAvatar(player.id, "🧲");
+                    let equation = systemOfEquationsSumSingleY(300 * 300, sumR * sumR, 0, 0.05);
+                    let multiplier = Math.abs((equation.x) * distance + (equation.y));
+                    let speed = multiplier / distance;
+                    if(distance < 300 && distance > r + br){
+                        let xg = speed * dx * -1;
+                        let yg = speed * dy * -1;
+                        xgravity += xg;
+                        ygravity += yg;
+                    }
                 }
-            }
-            if(player.strangenesses.airPump){
-                room.setPlayerAvatar(player.id, "💨");
-                let equation = systemOfEquationsSumSingleY(400 * 400, sumR * sumR, 0, 0.05);
-                let multiplier = Math.abs((equation.x) * distance + (equation.y));
-                let speed = multiplier / distance;
-                if(distance < 400 && distance > r + br){
-                    let xg = speed * dx;
-                    let yg = speed * dy;
-                    xgravity += xg;
-                    ygravity += yg;
+                if(player.strangenesses.airPump){
+                    room.setPlayerAvatar(player.id, "💨");
+                    let equation = systemOfEquationsSumSingleY(400 * 400, sumR * sumR, 0, 0.05);
+                    let multiplier = Math.abs((equation.x) * distance + (equation.y));
+                    let speed = multiplier / distance;
+                    if(distance < 400 && distance > r + br){
+                        let xg = speed * dx;
+                        let yg = speed * dy;
+                        xgravity += xg;
+                        ygravity += yg;
+                    }
                 }
             }
         })
@@ -460,39 +467,51 @@ export default {
             if(player.strangenesses.diamondFist){
                 room.setPlayerAvatar(player.id, "🥊")
                 const enemyTeam = players.findPlayersByTeam(this.convertTeam(player.id));
-                let {x, y, radius} = room.getPlayerDiscProperties(player.id);
-                enemyTeam.forEach(enemy => {
-                    let {x: ex, y: ey, radius: eradius} = room.getPlayerDiscProperties(enemy.id);
-                    let dx = x - ex;
-                    let dy = y - ey;
-                    let sradius = radius + eradius;
-                    let distance = Math.sqrt(dx*dx+dy*dy);
-                    let distanceMinusRadius = distance - sradius;
-                    let speed = 25 / distance;
-                    if(distanceMinusRadius < 1.25){
-                        room.setPlayerDiscProperties(enemy.id, {xspeed: dx * speed * -1, yspeed: dy * speed * -1});
-                    }
-                }); 
+                let _player = room.getPlayerDiscProperties(player.id)
+                let {x, y, radius} = _player;
+                if(_player){
+                    enemyTeam.forEach(enemy => {
+                        let _enemy = room.getPlayerDiscProperties(enemy.id);
+                        if(_enemy){
+                            let {x: ex, y: ey, radius: eradius} = _enemy;
+                            let dx = x - ex;
+                            let dy = y - ey;
+                            let sradius = radius + eradius;
+                            let distance = Math.sqrt(dx*dx+dy*dy);
+                            let distanceMinusRadius = distance - sradius;
+                            let speed = 25 / distance;
+                            if(distanceMinusRadius < 1.25){
+                                room.setPlayerDiscProperties(enemy.id, {xspeed: dx * speed * -1, yspeed: dy * speed * -1});
+                            }
+                        }
+                    }); 
+                }
             }
         })
     },
     checkBugs: function(){
         let bug = false;
         players.getPlayersPlaying().forEach(player => {
-            let {x, y, xspeed, yspeed, xgravity, ygravity, radius} = room.getPlayerDiscProperties(player.id);
+            let _player = room.getPlayerDiscProperties(player.id);
+            if(_player){
+                let {x, y, xspeed, yspeed, xgravity, ygravity, radius} = _player; 
+                let ingredients = [x, y, xspeed, yspeed, xgravity, ygravity, radius];
+                ingredients = ingredients.map((pre, index) => ({isBug: Number.isNaN(pre), index})).filter(pre => pre.isBug);
+                if(ingredients.length){
+                    bug = true;
+                    discordWebhook.notifyBug(`${getDateWithTime()} ${JSON.stringify(ingredients)} ${JSON.stringify(roomStates.LUS)}`);
+                }
+            }
+        })
+        let _ball = room.getDiscProperties(0);
+        if(_ball){
+            let {x, y, xspeed, yspeed, xgravity, ygravity, radius} = _ball; 
             let ingredients = [x, y, xspeed, yspeed, xgravity, ygravity, radius];
             ingredients = ingredients.map((pre, index) => ({isBug: Number.isNaN(pre), index})).filter(pre => pre.isBug);
             if(ingredients.length){
                 bug = true;
                 discordWebhook.notifyBug(`${getDateWithTime()} ${JSON.stringify(ingredients)} ${JSON.stringify(roomStates.LUS)}`);
             }
-        })
-        let {x, y, xspeed, yspeed, xgravity, ygravity, radius} = room.getDiscProperties(0);
-        let ingredients = [x, y, xspeed, yspeed, xgravity, ygravity, radius];
-        ingredients = ingredients.map((pre, index) => ({isBug: Number.isNaN(pre), index})).filter(pre => pre.isBug);
-        if(ingredients.length){
-            bug = true;
-            discordWebhook.notifyBug(`${getDateWithTime()} ${JSON.stringify(ingredients)} ${JSON.stringify(roomStates.LUS)}`);
         }
         if(bug) roomStates.discordNoticeBug = false;
     }
