@@ -168,11 +168,11 @@ window.onHBLoaded = () => {
       game.checkIfPlayersFrozen();
       game.checkIfPlayersSelfFrozen();
     }
-    if(roomStates.game % 3 === 1){
+    if(roomStates.gameTick % 3 === 1){
       game.checkIfPlayersAreSuperman();
       game.checkIfPlayersMagnet();
     }
-    if(roomStates.game % 3 === 2){
+    if(roomStates.gameTick % 3 === 2){
       game.checkTimeTravelBall();
       game.checkIfPlayerDiamondFist();
     }
