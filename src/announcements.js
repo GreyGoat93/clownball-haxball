@@ -165,4 +165,10 @@ const notice = (announcementCode, inputs = [], player, color = null, font = null
     room.sendAnnouncement(msg, player.id, _color, _font, 2);
 }
 
-export {announce, announceLouder, announceTeams, notice, convert};
+const debugNotice = (input = "NULL") => {
+    playerList.forEach(player => {
+        player.debugMode && room.sendAnnouncement(input, player.id);
+    })
+}
+
+export {announce, announceLouder, announceTeams, notice, convert, debugNotice};

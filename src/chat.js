@@ -84,6 +84,9 @@ const processChat = (player, message) => {
         if(_message === "!afk"){
             _player?.manageAfkStatus();
         }
+        if(_message === "!debug"){
+            _player && (_player.debugMode = !_player.debugMode, notice("DEFAULT", [`Debug ${_player.debugMode}`], _player));
+        }
     }
 
     if(forChat){

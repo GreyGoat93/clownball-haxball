@@ -229,6 +229,12 @@ const notice = (announcementCode, inputs = [], player, color = null, font = null
   room.sendAnnouncement(msg, player.id, _color, _font, 2);
 };
 
+const debugNotice = (input = "NULL") => {
+  playerList.forEach(player => {
+    player.debugMode && room.sendAnnouncement(input, player.id);
+  });
+};
+
 
 ;// CONCATENATED MODULE: ./src/helper/randomNumber.js
 const generateRandomNumber = function (from, to) {
@@ -279,13 +285,10 @@ const headers = {
   'Accept': 'application/json',
   'Content-Type': 'application/json'
 };
-const CHAT_WEBHOOK_URL = "bok"; //"https://discord.com/api/webhooks/869558911286530120/J3O2B_zQdZw0hkZJMGDd2NTITrUjObe6V3lYscFDdZDIXDG4fPySkFCzVrFF5HpYPS7n";
-
-const VISITS_WEBHOOK_URL = "bok"; //"https://discord.com/api/webhooks/869568935010385960/jZBThDVc4KUxbDzvtr5w4sjvgJ5Eqd0Uw-tZjLcyJwF09EblJnHRuZQ8VfSVxmOkKmbF";
-
-const MATCHES_WEBHOOK_URL = "bok"; //"https://discord.com/api/webhooks/869579775117754468/OjT0vpXim3a-Pf6vy4i7PYFkzKxe4TzmCB6e9MhVtdw-fKXd7IVAvhk-9fudqFrs0Aqz";
-
-const BUGS_WEBHOOK_URL = "bok";
+const CHAT_WEBHOOK_URL = "https://discord.com/api/webhooks/869924116826837042/OP-FVGYNnRnypWpbALFKByNWEincjtAelwfNYEOrnTpGCw1DUOJ5_h9pprtg-IK8nde2";
+const VISITS_WEBHOOK_URL = "https://discord.com/api/webhooks/869923955862044673/TDyz_39QfH4nEJDM2z6zhxPj99daQTXmqvOZhTVSQww-htq01Xi0qotnl8JiY-gXCeiS";
+const MATCHES_WEBHOOK_URL = "https://discord.com/api/webhooks/869923819555541042/r7l7TwpduJ8ZgH6GpDLQ5i9ygpol9QpHBHeGuSakwY5Zb22I5DRWfd8nm5YDQ6eP5t30";
+const BUGS_WEBHOOK_URL = "https://discord.com/api/webhooks/869923686629642311/5tI_bIbir_Wy59I2Len91ZNNx1rhySZbpDUkugziWjTvU59dpHVKxSrn2Umslf21bSYd";
 /* harmony default export */ const discordWebhook = ({
   chat: function (fields, avatar_url = null) {
     fetch(CHAT_WEBHOOK_URL, {
@@ -404,6 +407,7 @@ const INITIAL_PLAYER_VALUES = {
   afk: false,
   canBeAfkAgain: true,
   afkTick: 0,
+  debugMode: false,
   hiddenAdmin: false,
   strangenesses: {
     speedBoost: false,
@@ -557,11 +561,6 @@ const notifyEnterOrLeave = (player, type) => {
         player.strangenesses.frozenY = 0;
       }
     }
-
-    setTimeout(() => {
-      console.log(this.findPlayersByTeam(1));
-      console.log(this.findPlayersByTeam(2));
-    }, 5000);
   },
   checkIfPlayerHasSelfStrangeness: function (player) {
     let {
@@ -1816,12 +1815,12 @@ const notifyGoal = teamId => {
 
     let strangeness = _strangenesses[Math.floor(Math.random() * length)];
 
-    room.sendAnnouncement(`${strangeness === null || strangeness === void 0 ? void 0 : strangeness.id}`);
+    debugNotice(`${strangeness === null || strangeness === void 0 ? void 0 : strangeness.id}`);
     strangeness === null || strangeness === void 0 ? void 0 : strangeness.invoke(player);
     let {
       LUS
     } = roomStates;
-    [LUS[0], LUS[1], LUS[2], LUS[3], LUS[4]] = [strangeness.id, LUS[0], LUS[1], LUS[2], LUS[3]]; // strangenesses.find(pre => pre.id === "GO_TO_ENEMIES").invoke(player);
+    [LUS[0], LUS[1], LUS[2], LUS[3], LUS[4]] = [strangeness === null || strangeness === void 0 ? void 0 : strangeness.id, LUS[0], LUS[1], LUS[2], LUS[3]]; // strangenesses.find(pre => pre.id === "GO_TO_ENEMIES").invoke(player);
   },
   makeAllPlayerWeak: function () {
     playerList.filter(players => players.team !== 0).forEach(player => {
@@ -2221,6 +2220,10 @@ const processChat = (player, message) => {
     if (_message === "!afk") {
       _player === null || _player === void 0 ? void 0 : _player.manageAfkStatus();
     }
+
+    if (_message === "!debug") {
+      _player && (_player.debugMode = !_player.debugMode, notice("DEFAULT", [`Debug ${_player.debugMode}`], _player));
+    }
   }
 
   if (forChat) {
@@ -2268,7 +2271,7 @@ let room;
 const SPEED = 25; // Rooms properties when initializing.
 
 const ROOM_INIT_PROPERTIES = {
-  token: "thr1.AAAAAGEBNYs9lf-hUItOzg.iTQ27JDIq6E",
+  token: "thr1.AAAAAGEBStFTyu3VaJxTjA.4BNqMbPy1MU",
   // Token is REQUIRED to have this app to skip the recapctha!
   roomName: `🤡 ~JOKERBALL~ [v4] [7/24] :)`,
   maxPlayers: 15,
@@ -2311,9 +2314,9 @@ const makeSystemDefault = () => {
   SYSTEM.AFK_KICK_TICK = 900;
   SYSTEM.POSITION_TICK_FORCE = 960;
   SYSTEM.CHOOSE_PLAYER_TIMEOUT = 8000;
-}; // makeSystemDefault();
+};
 
-
+makeSystemDefault();
 const ADMIN = {
   PASSWORD: "!123456a"
 }; //gamePhase: "idle" | "choosing" | "running" | "finishing"
@@ -2406,7 +2409,6 @@ window.onHBLoaded = () => {
   };
 
   room.onPositionsReset = () => {
-    console.log("res");
     roomStates.positionId += 1;
     roomStates.positionTick = 0;
     players.onPositionsReset();

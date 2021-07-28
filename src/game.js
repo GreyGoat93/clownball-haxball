@@ -1,5 +1,5 @@
 import {room, playerList, roomStates, SYSTEM, strangenessesInit, BOUNDS} from './room.js';
-import {announceLouder, announceTeams, COLORS, notice} from './announcements';
+import {announceLouder, announceTeams, COLORS, debugNotice, notice} from './announcements';
 import { strangenesses, strangenessUsage } from './strangeness.js';
 import players, { INITIAL_PLAYER_VALUES, INV_MASS_PLAYER } from './players.js'
 import discordWebhook from './api/discordWebhook.js';
@@ -346,10 +346,10 @@ export default {
         roomStates.strangenesses.frozenBall && (_strangenesses = [])
         let length = _strangenesses.length;
         let strangeness = _strangenesses[Math.floor(Math.random() * length)]
-        room.sendAnnouncement(`${strangeness?.id}`);
+        debugNotice(`${strangeness?.id}`);
         strangeness?.invoke(player);
         let {LUS} = roomStates;
-        [LUS[0], LUS[1], LUS[2], LUS[3], LUS[4]] = [strangeness.id, LUS[0], LUS[1], LUS[2], LUS[3]];
+        [LUS[0], LUS[1], LUS[2], LUS[3], LUS[4]] = [strangeness?.id, LUS[0], LUS[1], LUS[2], LUS[3]];
         // strangenesses.find(pre => pre.id === "GO_TO_ENEMIES").invoke(player);
     },
     makeAllPlayerWeak: function(){

@@ -56,7 +56,7 @@ const makeSystemDefault = () => {
   SYSTEM.CHOOSE_PLAYER_TIMEOUT = 8000;
 }
 
-// makeSystemDefault();
+makeSystemDefault();
 
 const ADMIN = {
   PASSWORD: "!123456a",
@@ -153,7 +153,6 @@ window.onHBLoaded = () => {
   }
 
   room.onPositionsReset = () => {
-    console.log("res");
     roomStates.positionId += 1;
     roomStates.positionTick = 0;
     players.onPositionsReset();

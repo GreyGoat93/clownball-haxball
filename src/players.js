@@ -14,6 +14,7 @@ export const INITIAL_PLAYER_VALUES = {
     afk: false,
     canBeAfkAgain: true,
     afkTick: 0,
+    debugMode: false,
     hiddenAdmin: false,
     strangenesses: {
         speedBoost: false,
@@ -150,10 +151,6 @@ export default {
                 player.strangenesses.frozenY = 0;
             }
         }
-        setTimeout(() => {
-            console.log(this.findPlayersByTeam(1))
-            console.log(this.findPlayersByTeam(2))
-        }, 5000)
     },
     checkIfPlayerHasSelfStrangeness: function(player){
         let {speedBoost, selfFrozen, timeTravel, superman, magnet, airPump, diamondFist} = player.strangenesses;
