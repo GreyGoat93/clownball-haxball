@@ -260,7 +260,7 @@ export const strangenesses = [
                 invoke(){
                     if(_player.strangenesses.speedBoostId === speedBoostId){
                         _player.strangenesses.speedBoost = false;
-                        room.setPlayerAvatar(_player.id, DEFAULT_AVATAR)
+                        room.setPlayerAvatar(_player.id, DEFAULT_AVATAR);
                     }
                 }
             })

@@ -14,10 +14,10 @@ export const SPEED = 25
 // Rooms properties when initializing.
 const ROOM_INIT_PROPERTIES = {
   token: process.env.TOKEN, // Token is REQUIRED to have this app to skip the recapctha!
-  roomName: `🤡 ~JOKERBALL~ [v4] [7/24] :)`,
+  roomName: `🤡 ~CLOWNBALL~ [v5] [7/24] :)`,
   maxPlayers: 15,
   noPlayer: true,
-  public: false,
+  public: true,
   geo: {
     code: process.env.GEO_CODE, 
     lat: parseFloat(process.env.GEO_LAT), 
@@ -159,17 +159,23 @@ window.onHBLoaded = () => {
   }
 
   room.onGameTick = () => {
+    strangenessUsage.filter(pre => pre.tick === roomStates.gameTick && pre.positionId === roomStates.positionId).forEach(pre => pre.invoke());
     players.assignPosition();
     game.checkAfksInGame();
     game.forceStart();
-    strangenessUsage.filter(pre => pre.tick === roomStates.gameTick && pre.positionId === roomStates.positionId).forEach(pre => pre.invoke());
     game.checkBallInTheField();
-    game.checkIfPlayersFrozen();
-    game.checkIfPlayersSelfFrozen();
-    game.checkIfPlayersAreSuperman();
-    game.checkIfPlayersMagnet();
-    game.checkTimeTravelBall();
-    game.checkIfPlayerDiamondFist();
+    if(roomStates.gameTick % 3 === 0){
+      game.checkIfPlayersFrozen();
+      game.checkIfPlayersSelfFrozen();
+    }
+    if(roomStates.game % 3 === 1){
+      game.checkIfPlayersAreSuperman();
+      game.checkIfPlayersMagnet();
+    }
+    if(roomStates.game % 3 === 2){
+      game.checkTimeTravelBall();
+      game.checkIfPlayerDiamondFist();
+    }
     roomStates.discordNoticeBug && game.checkBugs();
     roomStates.positionTick += 1;
     roomStates.gameTick += 1;

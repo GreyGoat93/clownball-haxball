@@ -476,10 +476,10 @@ export default {
         room.setDiscProperties(0, {xgravity, ygravity});
     },
     checkIfPlayerDiamondFist: function(){
-        playerList.filter(pre => pre.team !== 0).forEach(player => {
+        players.getPlayersPlaying().forEach(player => {
             if(player.strangenesses.diamondFist){
                 room.setPlayerAvatar(player.id, "🥊")
-                const enemyTeam = players.findPlayersByTeam(this.convertTeam(player.id));
+                const enemyTeam = players.findPlayersByTeam(this.convertTeam(player.team));
                 let _player = room.getPlayerDiscProperties(player.id)
                 let {x, y, radius} = _player;
                 if(_player){
