@@ -339,18 +339,30 @@ export default {
     },
     onPlayerBallKick: function(player){
         let _player = players.findPlayerById(player.id);
-        let _strangenesses = strangenesses;
-        players.checkIfPlayerHasSelfStrangeness(_player) && (
-            _strangenesses = _strangenesses.filter(pre => !SELF_STRANGENESSES.includes(pre.id))
-        )
-        roomStates.strangenesses.frozenBall && (_strangenesses = [])
-        let length = _strangenesses.length;
-        let strangeness = _strangenesses[Math.floor(Math.random() * length)]
-        debugNotice(`${strangeness?.id}`);
-        strangeness?.invoke(player);
-        let {LUS} = roomStates;
-        [LUS[0], LUS[1], LUS[2], LUS[3], LUS[4]] = [strangeness?.id, LUS[0], LUS[1], LUS[2], LUS[3]];
-        // strangenesses.find(pre => pre.id === "GO_TO_ENEMIES").invoke(player);
+        if(!roomStates.strangenesses.frozenBall && _player.strangenessCooldown === 0){
+            _player.noticeCooldown = true;
+            _player.strangenessCooldown = SYSTEM.STRANGENESS_COOLDOWN;
+            let _strangenesses = strangenesses;
+            players.checkIfPlayerHasSelfStrangeness(_player) && (
+                _strangenesses = _strangenesses.filter(pre => !SELF_STRANGENESSES.includes(pre.id))
+            )
+            roomStates.strangenesses.frozenBall && (_strangenesses = [])
+            let length = _strangenesses.length;
+            let strangeness = _strangenesses[Math.floor(Math.random() * length)]
+            debugNotice(`${strangeness?.id}`);
+            strangeness?.invoke(player);
+            let {LUS} = roomStates;
+            [LUS[0], LUS[1], LUS[2], LUS[3], LUS[4]] = [strangeness?.id, LUS[0], LUS[1], LUS[2], LUS[3]];
+            // strangenesses.find(pre => pre.id === "GO_TO_ENEMIES").invoke(player);
+        } else {
+            if(!roomStates.strangenesses.frozenBall){
+                if(_player.noticeCooldown){
+                    _player.noticeCooldown = false;
+                    let cooldownInSeconds = parseFloat(_player.strangenessCooldown / 60).toFixed(2).toString();
+                    notice("COOLDOWN_NOTIFIER", [cooldownInSeconds], _player);
+                }
+            }
+        }
     },
     makeAllPlayerWeak: function(){
         playerList.filter(players => players.team !== 0).forEach(player => {

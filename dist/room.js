@@ -145,6 +145,12 @@ const announcements = {
     en: "Ball is out of the field. It has been fixed.",
     tr: "Top saha dışıydı. Düzeltildi."
   },
+  COOLDOWN_NOTIFIER: {
+    inputCount: 1,
+    color: COLORS.WARNING,
+    en: "After )0$ seconds, you will be able to use random skill.",
+    tr: ")0$ saniyeden sonra rastgele yetenek kullanabileceksin."
+  },
   SPEED_BOOST: {
     inputCount: 0,
     color: COLORS.FUN,
@@ -341,7 +347,7 @@ const BUGS_WEBHOOK_URL = "https://discord.com/api/webhooks/869923686629642311/5t
   matchFinished: function (winner, time, redTeamField, blueTeamField) {
     let messageDisplayedInDiscord = "";
     if (winner === 1) messageDisplayedInDiscord += "Red ";else messageDisplayedInDiscord += "Blue ";
-    messageDisplayedInDiscord += " team won the match. Time: " + time.toFixed(3);
+    messageDisplayedInDiscord += " team won the match. Time: " + parseFloat(time).toFixed(3).toString();
     USE_MATCHES_WEBHOOK && fetch(MATCHES_WEBHOOK_URL, {
       method: "post",
       headers,
@@ -411,8 +417,11 @@ const INITIAL_PLAYER_VALUES = {
   afk: false,
   canBeAfkAgain: true,
   afkTick: 0,
+  strangenessCooldown: 120,
   debugMode: false,
   hiddenAdmin: false,
+  noticeCooldown: false,
+  noticeCantKickFrozen: true,
   strangenesses: {
     speedBoost: false,
     selfFrozen: false,
@@ -454,6 +463,9 @@ const INITIAL_PLAYER_VALUES = {
       this.afk = false;
       game.checkTheGame();
     }
+  },
+  reduceStrangenessCooldown: function () {
+    this.strangenessCooldown !== 0 && (this.strangenessCooldown -= 1);
   }
 };
 
@@ -617,6 +629,9 @@ const notifyEnterOrLeave = (player, type) => {
 
       _player && (player.position = _player.position);
     });
+  },
+  decreaseStrangenessCooldowns: function () {
+    playerList.forEach(player => player.reduceStrangenessCooldown());
   }
 });
 ;// CONCATENATED MODULE: ./src/helper/shuffle.js
@@ -1872,19 +1887,31 @@ const notifyGoal = teamId => {
   onPlayerBallKick: function (player) {
     let _player = players.findPlayerById(player.id);
 
-    let _strangenesses = strangenesses;
-    players.checkIfPlayerHasSelfStrangeness(_player) && (_strangenesses = _strangenesses.filter(pre => !SELF_STRANGENESSES.includes(pre.id)));
-    roomStates.strangenesses.frozenBall && (_strangenesses = []);
-    let length = _strangenesses.length;
+    if (!roomStates.strangenesses.frozenBall && _player.strangenessCooldown === 0) {
+      _player.noticeCooldown = true;
+      _player.strangenessCooldown = SYSTEM.STRANGENESS_COOLDOWN;
+      let _strangenesses = strangenesses;
+      players.checkIfPlayerHasSelfStrangeness(_player) && (_strangenesses = _strangenesses.filter(pre => !SELF_STRANGENESSES.includes(pre.id)));
+      roomStates.strangenesses.frozenBall && (_strangenesses = []);
+      let length = _strangenesses.length;
 
-    let strangeness = _strangenesses[Math.floor(Math.random() * length)];
+      let strangeness = _strangenesses[Math.floor(Math.random() * length)];
 
-    debugNotice(`${strangeness === null || strangeness === void 0 ? void 0 : strangeness.id}`);
-    strangeness === null || strangeness === void 0 ? void 0 : strangeness.invoke(player);
-    let {
-      LUS
-    } = roomStates;
-    [LUS[0], LUS[1], LUS[2], LUS[3], LUS[4]] = [strangeness === null || strangeness === void 0 ? void 0 : strangeness.id, LUS[0], LUS[1], LUS[2], LUS[3]]; // strangenesses.find(pre => pre.id === "GO_TO_ENEMIES").invoke(player);
+      debugNotice(`${strangeness === null || strangeness === void 0 ? void 0 : strangeness.id}`);
+      strangeness === null || strangeness === void 0 ? void 0 : strangeness.invoke(player);
+      let {
+        LUS
+      } = roomStates;
+      [LUS[0], LUS[1], LUS[2], LUS[3], LUS[4]] = [strangeness === null || strangeness === void 0 ? void 0 : strangeness.id, LUS[0], LUS[1], LUS[2], LUS[3]]; // strangenesses.find(pre => pre.id === "GO_TO_ENEMIES").invoke(player);
+    } else {
+      if (!roomStates.strangenesses.frozenBall) {
+        if (_player.noticeCooldown) {
+          _player.noticeCooldown = false;
+          let cooldownInSeconds = parseFloat(_player.strangenessCooldown / 60).toFixed(2).toString();
+          notice("COOLDOWN_NOTIFIER", [cooldownInSeconds], _player);
+        }
+      }
+    }
   },
   makeAllPlayerWeak: function () {
     playerList.filter(players => players.team !== 0).forEach(player => {
@@ -2014,66 +2041,70 @@ const notifyGoal = teamId => {
   checkIfPlayersMagnet: function () {
     let xgravity = 0;
     let ygravity = 0;
-    playerList.filter(player => player.team !== 0).forEach(player => {
-      let _ball = room.getDiscProperties(0);
 
-      let _player = room.getPlayerDiscProperties(player.id);
+    if (!roomStates.strangenesses.frozenBall) {
+      playerList.filter(player => player.team !== 0).forEach(player => {
+        let _ball = room.getDiscProperties(0);
 
-      if (_ball && _player) {
-        let {
-          x,
-          y,
-          radius: r
-        } = _ball;
-        let {
-          x: bx,
-          y: by,
-          radius: br
-        } = _player;
-        let dx = x - bx;
-        let dy = y - by;
-        let sumR = r + br;
-        let distance = Math.sqrt(dx * dx + dy * dy);
+        let _player = room.getPlayerDiscProperties(player.id);
 
-        if (player.strangenesses.magnet) {
-          room.setPlayerAvatar(player.id, "🧲");
-          let equation = systemOfEquationsSumSingleY(300 * 300, sumR * sumR, 0, 0.05);
-          let multiplier = Math.abs(equation.x * distance + equation.y);
-          let speed = multiplier / distance;
+        if (_ball && _player) {
+          let {
+            x,
+            y,
+            radius: r
+          } = _ball;
+          let {
+            x: bx,
+            y: by,
+            radius: br
+          } = _player;
+          let dx = x - bx;
+          let dy = y - by;
+          let sumR = r + br;
+          let distance = Math.sqrt(dx * dx + dy * dy);
 
-          if (distance < 300 && distance > r + br) {
-            let xg = speed * dx * -1;
-            let yg = speed * dy * -1;
-            xgravity += xg;
-            ygravity += yg;
+          if (player.strangenesses.magnet) {
+            room.setPlayerAvatar(player.id, "🧲");
+            let equation = systemOfEquationsSumSingleY(300 * 300, sumR * sumR, 0, 0.05);
+            let multiplier = Math.abs(equation.x * distance + equation.y);
+            let speed = multiplier / distance;
+
+            if (distance < 300 && distance > r + br) {
+              let xg = speed * dx * -1;
+              let yg = speed * dy * -1;
+              xgravity += xg;
+              ygravity += yg;
+            }
+          }
+
+          if (player.strangenesses.airPump) {
+            room.setPlayerAvatar(player.id, "💨");
+            let equation = systemOfEquationsSumSingleY(400 * 400, sumR * sumR, 0, 0.05);
+            let multiplier = Math.abs(equation.x * distance + equation.y);
+            let speed = multiplier / distance;
+
+            if (distance < 400 && distance > r + br) {
+              let xg = speed * dx;
+              let yg = speed * dy;
+              xgravity += xg;
+              ygravity += yg;
+            }
           }
         }
+      });
+    }
 
-        if (player.strangenesses.airPump) {
-          room.setPlayerAvatar(player.id, "💨");
-          let equation = systemOfEquationsSumSingleY(400 * 400, sumR * sumR, 0, 0.05);
-          let multiplier = Math.abs(equation.x * distance + equation.y);
-          let speed = multiplier / distance;
-
-          if (distance < 400 && distance > r + br) {
-            let xg = speed * dx;
-            let yg = speed * dy;
-            xgravity += xg;
-            ygravity += yg;
-          }
-        }
-      }
-    });
     room.setDiscProperties(0, {
       xgravity,
       ygravity
     });
   },
   checkIfPlayerDiamondFist: function () {
-    playerList.filter(pre => pre.team !== 0).forEach(player => {
+    players.getPlayersPlaying().forEach(player => {
       if (player.strangenesses.diamondFist) {
         room.setPlayerAvatar(player.id, "🥊");
-        const enemyTeam = players.findPlayersByTeam(this.convertTeam(player.id));
+        const enemyTeam = players.findPlayersByTeam(this.convertTeam(player.team));
 
         let _player = room.getPlayerDiscProperties(player.id);
 
@@ -2380,9 +2411,9 @@ let room;
 const SPEED = 25; // Rooms properties when initializing.
 
 const ROOM_INIT_PROPERTIES = {
-  token: "thr1.AAAAAGEBfmLEuZpHTcteZA.BPHaT-o1Rvg",
+  token: "thr1.AAAAAGEBpnThUQX32qmK9g.BDRQCoWjNYQ",
   // Token is REQUIRED to have this app to skip the recapctha!
-  roomName: `🤡 ~JOKERBALL~ [v4] [7/24] :)`,
+  roomName: `🤡 ~CLOWNBALL~ [v5] [7/24] :)`,
   maxPlayers: 15,
   noPlayer: true,
   public: false,
@@ -2409,7 +2440,9 @@ const SYSTEM = {
   AFK_KICK_TICK: 90000,
   // in tick
   POSITION_TICK_FORCE: 960,
-  CHOOSE_PLAYER_TIMEOUT: 800000 // in ms
+  CHOOSE_PLAYER_TIMEOUT: 800000,
+  // in ms
+  STRANGENESS_COOLDOWN: 480 // in tick
 
 };
 
@@ -2524,17 +2557,22 @@ window.onHBLoaded = () => {
   };
 
   room.onGameTick = () => {
+    strangenessUsage.filter(pre => pre.tick === roomStates.gameTick && pre.positionId === roomStates.positionId).forEach(pre => pre.invoke());
     players.assignPosition();
     game.checkAfksInGame();
     game.forceStart();
-    strangenessUsage.filter(pre => pre.tick === roomStates.gameTick && pre.positionId === roomStates.positionId).forEach(pre => pre.invoke());
     game.checkBallInTheField();
-    game.checkIfPlayersFrozen();
-    game.checkIfPlayersSelfFrozen();
-    game.checkIfPlayersAreSuperman();
-    game.checkIfPlayersMagnet();
-    game.checkTimeTravelBall();
-    game.checkIfPlayerDiamondFist();
+
+    if (roomStates.gameTick % 2 === 0) {
+      game.checkIfPlayersFrozen();
+      game.checkIfPlayersSelfFrozen();
+      game.checkIfPlayersAreSuperman();
+      game.checkIfPlayersMagnet();
+      game.checkTimeTravelBall();
+      game.checkIfPlayerDiamondFist();
+    }
+
+    players.decreaseStrangenessCooldowns();
     roomStates.discordNoticeBug && game.checkBugs();
     roomStates.positionTick += 1;
     roomStates.gameTick += 1;
