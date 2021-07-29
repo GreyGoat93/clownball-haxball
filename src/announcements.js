@@ -1,4 +1,4 @@
-import { playerList, room } from './room.js';
+import { DEFAULT_AVATAR, playerList, room } from './room.js';
 
 const DISCORD = null;
 
@@ -24,8 +24,8 @@ const announcements = {
     WELCOME: {
         inputCount: 1,
         color: COLORS.FUN,
-        en: ")0$, Welcome!",
-        tr: ")0$, Hoşgeldin!",
+        en: ")0$, Welcome! Clownball is a game mode that when you kick the ball, you will have a random skill or bad luck. 8 seconds after you kick the ball, when you kick the ball again, you will be able to have again a random skill or bad luck. Enjoy it! " + DEFAULT_AVATAR,
+        tr: ")0$, Hoşgeldin! Clownball, topa vurduğunda rastgele bir beceri veya şanssızlık yaşayacağın bir oyun modudur. Topa vurduktan 8 saniye sonra, ve yine topa vurduğunda, tekrar rastgele bir beceriye veya şanssızlığa sahip olabileceksin. İyi oyunlar! " + DEFAULT_AVATAR,
     },
     SELECT_PLAYER: {
         inputCount: 2,

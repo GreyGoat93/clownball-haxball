@@ -6,8 +6,6 @@ import country from './api/country.js';
 import discordWebhook from './api/discordWebhook.js';
 import { getDateWithTime } from './helper/time.js';
 
-export const INV_MASS_PLAYER = 999999999999;
-
 const availableLanguages = ["en", "tr"];
 
 export const INITIAL_PLAYER_VALUES = {
@@ -132,7 +130,6 @@ export default {
         const player = this.findPlayerById(changedPlayer.id);
         player.team = changedPlayer.team;
         if([1, 2].includes(player.team)){
-            room.setPlayerDiscProperties(player.id, {invMass: INV_MASS_PLAYER});
             if(player.team === 1){
                 room.setPlayerDiscProperties(player.id, {x: -400});
             } else if(player.team === 2){
@@ -185,7 +182,6 @@ export default {
         return playerList.filter(pre => pre.team !== 0);
     },
     onPositionsReset: function(){
-        game.makeAllPlayerWeak();
         playerList.forEach(player => {
             room.setPlayerAvatar(player.id, DEFAULT_AVATAR)
             player.strangenesses = {...INITIAL_PLAYER_VALUES.strangenesses}

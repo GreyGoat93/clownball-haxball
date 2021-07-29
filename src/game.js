@@ -277,7 +277,6 @@ export default {
         this.resetOnGameStart();
     },
     resetOnGameStart: function(){
-        this.makeAllPlayerWeak();
         roomStates.gameStarted = true;
         roomStates.gamePhase = "running";
         roomStates.gameId += 1;
@@ -363,11 +362,6 @@ export default {
                 }
             }
         }
-    },
-    makeAllPlayerWeak: function(){
-        playerList.filter(players => players.team !== 0).forEach(player => {
-            room.setPlayerDiscProperties(player.id, {invMass: INV_MASS_PLAYER})
-        })
     },
     getPlayersDiscProperties: function(){
         room.getPlayerList().forEach(el => {
