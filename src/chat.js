@@ -54,7 +54,7 @@ const processChat = (player, message) => {
     }
     if(["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"].includes(_message)){
         forChat = roomStates.teamSelecting === 0 ? true : false;
-        game.selectPlayer(parseInt(_message), _player.team);
+        roomStates.teamSelecting !== 0 && game.selectPlayer(parseInt(_message), _player.team);
     }
     if(_message.startsWith("!")){
         forChat = false;

@@ -217,7 +217,7 @@ export default {
     selectPlayer: function(index, selectorsTeam){
         const playables = players.findPlayables();
         const playablesSpec = playables.filter(pre => pre.team === 0); 
-        if(roomStates.selectorsTeam !== 0){
+        if(roomStates.selectorsTeam !== 0 && playablesSpec[index-1]){
             if(roomStates.teamSelecting === 1){
                 if(selectorsTeam === 1){
                     room.pauseGame(false);
