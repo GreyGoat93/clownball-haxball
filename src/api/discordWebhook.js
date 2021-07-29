@@ -72,7 +72,7 @@ export default {
         let messageDisplayedInDiscord = "";
         if(winner === 1) messageDisplayedInDiscord += "Red ";
         else messageDisplayedInDiscord += "Blue ";
-        messageDisplayedInDiscord += " team won the match. Time: " + time.toFixed(3);
+        messageDisplayedInDiscord += " team won the match. Time: " + parseFloat(time).toFixed(3).toString();
         USE_MATCHES_WEBHOOK && fetch(MATCHES_WEBHOOK_URL, {
             method: "post",
             headers,

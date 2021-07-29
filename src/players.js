@@ -14,8 +14,11 @@ export const INITIAL_PLAYER_VALUES = {
     afk: false,
     canBeAfkAgain: true,
     afkTick: 0,
+    strangenessCooldown: 120,
     debugMode: false,
     hiddenAdmin: false,
+    noticeCooldown: false,
+    noticeCantKickFrozen: true,
     strangenesses: {
         speedBoost: false,
         selfFrozen: false,
@@ -56,6 +59,9 @@ export const INITIAL_PLAYER_VALUES = {
             this.afk = false;
             game.checkTheGame();
         }
+    },
+    reduceStrangenessCooldown: function(){
+        this.strangenessCooldown !== 0 && (this.strangenessCooldown -= 1);
     }
 }
 
@@ -191,6 +197,9 @@ export default {
             const _player = room.getPlayer(player.id);
             _player && (player.position = _player.position);
         })
+    },
+    decreaseStrangenessCooldowns: function(){
+        playerList.forEach(player => player.reduceStrangenessCooldown());
     }
 }
 

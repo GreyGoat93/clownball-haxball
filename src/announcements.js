@@ -93,6 +93,12 @@ const announcements = {
         en: "Ball is out of the field. It has been fixed.",
         tr: "Top saha dışıydı. Düzeltildi.",
     },
+    COOLDOWN_NOTIFIER: {
+        inputCount: 1,
+        color: COLORS.WARNING,
+        en: "After )0$ seconds, you will be able to use random skill.",
+        tr: ")0$ saniyeden sonra rastgele yetenek kullanabileceksin.",
+    },
     SPEED_BOOST: {
         inputCount: 0,
         color: COLORS.FUN,

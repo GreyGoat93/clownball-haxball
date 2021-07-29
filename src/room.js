@@ -41,22 +41,24 @@ const SYSTEM = {
   AFK_WARN_TICK: 48000, // in tick
   AFK_KICK_TICK: 90000, // in tick
   POSITION_TICK_FORCE: 960,
-  CHOOSE_PLAYER_TIMEOUT: 800000 // in ms
+  CHOOSE_PLAYER_TIMEOUT: 800000, // in ms
+  STRANGENESS_COOLDOWN: 480 // in tick
 }
 
 const makeSystemDefault = () => {
   SYSTEM.MANAGE_AFKS = true;
   SYSTEM.ONE_TAB = true;
-  SYSTEM.PEOPLE_COUNT_BY_TEAM = 4;
+  SYSTEM.PEOPLE_COUNT_BY_TEAM = 5;
   SYSTEM.GAME_TIME_LIMIT = 2;
   SYSTEM.GAME_SCORE_LIMIT = 3;
   SYSTEM.AFK_WARN_TICK = 480;
   SYSTEM.AFK_KICK_TICK = 900;
   SYSTEM.POSITION_TICK_FORCE = 960;
   SYSTEM.CHOOSE_PLAYER_TIMEOUT = 8000;
+  SYSTEM.STRANGENESS_COOLDOWN = 480;
 }
 
-// makeSystemDefault();
+makeSystemDefault();
 
 const ADMIN = {
   PASSWORD: "!123456a",
@@ -164,18 +166,15 @@ window.onHBLoaded = () => {
     game.checkAfksInGame();
     game.forceStart();
     game.checkBallInTheField();
-    if(roomStates.gameTick % 3 === 0){
+    if(roomStates.gameTick % 2 === 0){
       game.checkIfPlayersFrozen();
       game.checkIfPlayersSelfFrozen();
-    }
-    if(roomStates.gameTick % 3 === 1){
       game.checkIfPlayersAreSuperman();
       game.checkIfPlayersMagnet();
-    }
-    if(roomStates.gameTick % 3 === 2){
       game.checkTimeTravelBall();
       game.checkIfPlayerDiamondFist();
     }
+    players.decreaseStrangenessCooldowns();
     roomStates.discordNoticeBug && game.checkBugs();
     roomStates.positionTick += 1;
     roomStates.gameTick += 1;
