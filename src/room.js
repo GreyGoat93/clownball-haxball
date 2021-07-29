@@ -14,7 +14,7 @@ export const SPEED = 25
 // Rooms properties when initializing.
 const ROOM_INIT_PROPERTIES = {
   token: process.env.TOKEN, // Token is REQUIRED to have this app to skip the recapctha!
-  roomName: `🤡 ~CLOWNBALL~ [v5] [7/24] :)`,
+  roomName: `🤡⠀⠀5V5⠀CLOWNBALL⠀█▬█ █ ▀█▀ `,
   maxPlayers: 15,
   noPlayer: true,
   public: true,
